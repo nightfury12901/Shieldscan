@@ -1,0 +1,30 @@
+# FastAPI + server
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+
+# HTTP
+httpx>=0.27.0
+requests>=2.31.0
+aiohttp>=3.9.5
+
+# Supabase
+supabase>=2.4.3
+
+# DNS scanning
+dnspython>=2.6.1
+
+# SSL scanning
+sslyze>=5.2.0
+
+# PDF generation
+reportlab>=4.2.0
+
+# Environment
+python-dotenv>=1.0.1
+
+# Groq AI
+groq>=0.9.0
+
+# Data
+pydantic>=2.7.1

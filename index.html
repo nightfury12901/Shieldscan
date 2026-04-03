@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ShieldScan runs 9 concurrent security modules against your GitHub repository or live URL and delivers a plain-English risk report in under 60 seconds.">
+  <title>ShieldScan</title>
+  <link rel="icon" type="image/png" href="SS.png" sizes="32x32">
+  <link rel="icon" type="image/png" href="SS.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="SS.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300..700&display=swap" rel="stylesheet">
+
+  <!-- Design System -->
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
+  <link rel="stylesheet" href="styles/animations.css">
+</head>
+<body>
+
+<!-- Animated background canvas -->
+<canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+<!-- APP SHELL -->
+<div id="app-shell">
+
+  <!-- TOP NAV -->
+  <header>
+    <nav id="top-nav" aria-label="Main navigation">
+      <a class="nav-logo" href="#" onclick="showLandingView(); return false;"
+         aria-label="ShieldScan — Go to home page">
+        <svg width="34" height="38" viewBox="0 0 32 36" fill="none"
+             xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M16 2L28 7.5V18C28 24.5 22.5 30.5 16 33
+                   C9.5 30.5 4 24.5 4 18V7.5L16 2Z"
+                stroke="var(--color-primary)" stroke-width="1.5" fill="none"
+                opacity="0.5"/>
+          <path d="M16 6L25 10.5V18C25 23 21 28 16 30
+                   C11 28 7 23 7 18V10.5L16 6Z"
+                fill="var(--color-primary)" fill-opacity="0.06"
+                stroke="var(--color-primary)" stroke-width="1"/>
+          <line x1="4" y1="18" x2="28" y2="18"
+                stroke="var(--color-primary)" stroke-width="0.75"
+                stroke-opacity="0.4"/>
+          <line x1="7" y1="14" x2="25" y2="14"
+                stroke="var(--color-primary)" stroke-width="0.5"
+                stroke-opacity="0.2"/>
+        </svg>
+        <div class="wordmark">
+          <span class="w-shield">Shield</span><span class="w-scan">Scan</span>
+        </div>
+      </a>
+
+      <div class="nav-right">
+        <div class="nav-status-pill" aria-label="9 modules active">
+          <span class="status-dot" aria-hidden="true"></span>
+          9 Modules Active
+        </div>
+        <button class="btn-ghost" onclick="showResultsView()" aria-label="View scan history">
+          View History
+        </button>
+        <button class="btn-primary" onclick="showLandingView()" aria-label="Start a new scan">
+          <svg data-lucide="plus" aria-hidden="true"></svg>
+          New Scan
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- MAIN AREA -->
+  <div id="main-area">
+    <aside id="sidebar" aria-label="Scan results navigation"></aside>
+    <main id="content-area" tabindex="-1"></main>
+  </div>
+
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+<!-- CDN Scripts -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- App Scripts -->
+<script src="js/findings.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/scan.js"></script>
+<script src="js/router.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+    initBackground();
+    showLandingView();
+  });
+</script>
+
+</body>
+</html>

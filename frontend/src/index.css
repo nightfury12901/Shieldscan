@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@import "./assets/styles/tokens.css";
+@import "./assets/styles/base.css";
+@import "./assets/styles/layout.css";
+@import "./assets/styles/components.css";
+@import "./assets/styles/animations.css";
+
+@theme {
+  --color-background: #0f0f1a;
+  --color-card: #1a1a2e;
+  --color-gold: #f5a623;
+  --color-teal: #00b4d8;
+  --color-critical: #ef4444;
+  --color-medium: #f59e0b;
+  --color-low: #10b981;
+  --color-text: #e8e8e8;
+}
+
+/* Custom scrollbar to look sleek */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0f0f1a;
+}
+::-webkit-scrollbar-thumb {
+  background: #1a1a2e;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00b4d8;
+}

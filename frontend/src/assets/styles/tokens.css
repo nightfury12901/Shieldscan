@@ -1,0 +1,87 @@
+/* ================================================================
+   SHIELDSCAN — VOID IRON DESIGN SYSTEM v2.0
+   Enhanced with glassmorphism, glow, and depth tokens
+   ================================================================ */
+:root {
+  /* === SURFACES === */
+  --color-bg:               #000000;
+  --color-surface:          #0a0a0a;
+  --color-surface-2:        #111111;
+  --color-surface-offset:   #161616;
+  --color-surface-dynamic:  #1c1c1c;
+  --color-border:           #222222;
+  --color-divider:          #1a1a1a;
+  --color-surface-glass:    rgba(10, 10, 10, 0.65);
+  --color-surface-glass-2:  rgba(17, 17, 17, 0.70);
+  /* === TEXT === */
+  --color-text:             #ffffff;
+  --color-text-muted:       #888888;
+  --color-text-faint:       #555555;
+  --color-text-inverse:     #000000;
+  /* === PRIMARY — Black & White === */
+  --color-primary:          #ffffff;
+  --color-primary-hover:    #dddddd;
+  --color-primary-active:   #bbbbbb;
+  --color-primary-highlight:#222222;
+  --color-primary-glow:     rgba(255, 255, 255, 0.12);
+  --color-primary-subtle:   rgba(255, 255, 255, 0.06);
+  /* === SEVERITY (Preserved) === */
+  --color-critical:           #ff4d5a;
+  --color-critical-hover:     #e03040;
+  --color-critical-highlight: #2a0f14;
+  --color-error:              #ff8c38;
+  --color-error-hover:        #e67518;
+  --color-error-highlight:    #271508;
+  --color-warning:            #f0c800;
+  --color-warning-hover:      #d4b000;
+  --color-warning-highlight:  #231c02;
+  --color-success:            #2ce870;
+  --color-success-hover:      #1abd55;
+  --color-success-highlight:  #0a2214;
+  --color-blue:               #5eaaff;
+  --color-blue-hover:         #3d90f0;
+  --color-blue-highlight:     #0d1c32;
+  /* === SHADOWS === */
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.8);
+  --shadow-md:   0 4px 20px rgba(0,0,0,0.9);
+  --shadow-lg:   0 12px 48px rgba(0,0,0,0.95);
+  --shadow-glow: 0 0 30px rgba(255,255,255,0.04);
+  --shadow-card-hover: 0 8px 32px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.1);
+  /* === GLOW === */
+  --glow-primary:  0 0 24px rgba(255,255,255,0.15), 0 0 80px rgba(255,255,255,0.05);
+  --glow-critical: 0 0 20px rgba(255,77,90,0.25);
+  --glow-soft:     0 0 40px rgba(255,255,255,0.05);
+  /* === GLASS === */
+  --glass-blur: 16px;
+  --glass-border: 1px solid rgba(255,255,255,0.06);
+  /* === RADIUS === */
+  --radius-sm:   0.25rem;
+  --radius-md:   0.5rem;
+  --radius-lg:   0.75rem;
+  --radius-xl:   1rem;
+  --radius-2xl:  1.25rem;
+  --radius-full: 9999px;
+  /* === MOTION === */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-ui:     160ms var(--ease-out);
+  --transition-medium: 300ms var(--ease-out);
+  --transition-slow:   500ms var(--ease-smooth);
+  /* === TYPOGRAPHY === */
+  --font-display: 'IBM Plex Mono', 'Courier New', monospace;
+  --font-body:    'Inter', 'Helvetica Neue', sans-serif;
+  /* === TYPE SCALE === */
+  --text-2xs:  0.625rem;
+  --text-xs:   clamp(0.7rem, 0.65rem + 0.25vw, 0.8125rem);
+  --text-sm:   clamp(0.8125rem, 0.75rem + 0.3vw, 0.9375rem);
+  --text-base: clamp(0.9375rem, 0.9rem + 0.2vw, 1.0625rem);
+  --text-lg:   clamp(1.0625rem, 0.95rem + 0.6vw, 1.375rem);
+  --text-xl:   clamp(1.5rem, 1.1rem + 1.5vw, 2.5rem);
+  --text-2xl:  clamp(2rem, 1.5rem + 2vw, 3.25rem);
+  /* === SPACING === */
+  --space-1: 0.25rem; --space-2: 0.5rem;  --space-3: 0.75rem;
+  --space-4: 1rem;    --space-5: 1.25rem;  --space-6: 1.5rem;
+  --space-8: 2rem;    --space-10: 2.5rem;  --space-12: 3rem;
+  --space-16: 4rem;   --space-20: 5rem;
+}
