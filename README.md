@@ -84,16 +84,6 @@ npm run dev
 
 ---
 
-## 📸 Dashboard Preview
-
-<div align="center">
-  <p><i>The high-contrast, professional monochrome dashboard with real-time audit progress.</i></p>
-  <!-- Screenshot placeholder or descriptive text -->
-  <img src="https://via.placeholder.com/800x450/000000/FFFFFF?text=ShieldScan+Dashboard+Preview" width="700">
-</div>
-
----
-
 <div align="center">
   <p>Built with ❤️ by the ShieldScan Team</p>
   <p><i>Protecting the web, one scan at a time.</i></p>
