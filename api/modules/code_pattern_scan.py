@@ -1,14 +1,7 @@
-"""
-Dangerous code pattern scanner.
-Uses regex + simple AST-like matching to detect insecure coding patterns.
-"""
 import re
 from typing import Any
+import ast
 
-# ─────────────────────────────────────────────
-# Pattern definitions
-# (name, pattern, severity, category, description, fix_steps)
-# ─────────────────────────────────────────────
 CODE_PATTERNS = [
     (
         "eval() with variable input",
@@ -155,3 +148,32 @@ async def scan_code_patterns(files: list[dict]) -> list[dict]:
                 })
 
     return findings
+
+
+def evaluate_expression(expression: str) -> Any:
+    try:
+        return ast.literal_eval(expression)
+    except (ValueError, SyntaxError):
+        # If the expression is not a valid literal, try to evaluate it as a simple arithmetic expression
+        try:
+            return eval(expression, {"__builtins__": None}, {})
+        except Exception:
+            # If the expression is not a valid arithmetic expression, return None
+            return None
+
+
+# Example usage:
+if __name__ == "__main__":
+    import asyncio
+
+    async def main():
+        files = [
+            {"path": "example.py", "content": "eval('1 + 2')"},
+            {"path": "example2.py", "content": "print('Hello World')"},
+        ]
+
+        findings = await scan_code_patterns(files)
+        for finding in findings:
+            print(finding)
+
+    asyncio.run(main())
