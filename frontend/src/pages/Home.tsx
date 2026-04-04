@@ -99,7 +99,7 @@ export default function Home() {
 
     try {
       const endpoint = `/api/scan/${activeTab}`
-      const payload: any = {}
+      const payload: any = { user_id: session.user.id }
 
       if (activeTab === 'url') payload.url = finalTarget
       if (activeTab === 'github') {
