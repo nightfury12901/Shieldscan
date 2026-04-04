@@ -4,6 +4,7 @@ Uses regex + simple AST-like matching to detect insecure coding patterns.
 """
 import re
 from typing import Any
+import ast
 
 # ─────────────────────────────────────────────
 # Pattern definitions
@@ -177,5 +178,56 @@ async def scan_code_patterns(files: list[dict]) -> list[dict]:
                     "line_number": line_num,
                     "metadata": {"context": context, "pattern": name},
                 })
+
+    return findings
+
+
+def parse_code(content: str):
+    try:
+        tree = ast.parse(content)
+        return tree
+    except SyntaxError as e:
+        print(f"Error parsing code: {e}")
+        return None
+
+
+def check_eval(tree):
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'eval':
+            return True
+    return False
+
+
+async def scan_code_patterns_safe(files: list[dict]) -> list[dict]:
+    findings = []
+    seen_signatures = set()
+
+    SKIP_DIRS = {"node_modules", ".git", "vendor", "dist", "build", "__pycache__", ".next"}
+    SKIP_EXTS = {".min.js", ".map", ".png", ".jpg", ".gif", ".svg", ".pdf", ".zip"}
+
+    for file_obj in files:
+        path = file_obj.get("path", "")
+        content = file_obj.get("content", "")
+
+        if any(f"/{skip}/" in f"/{path}" or path.startswith(f"{skip}/") for skip in SKIP_DIRS):
+            continue
+        if any(path.endswith(ext) for ext in SKIP_EXTS):
+            continue
+
+        tree = parse_code(content)
+        if tree is None:
+            continue
+
+        if check_eval(tree):
+            findings.append({
+                "severity": "critical",
+                "category": "dangerous_code",
+                "title": "Dangerous Code Pattern: eval() with variable input",
+                "description": "Your code uses eval() with a dynamic value. If that value comes from user input, an attacker can execute any code they want on your server.",
+                "fix_steps": "1. Remove eval() from your code\n2. Find a safer alternative — eval() is almost never necessary\n3. If evaluating math expressions, use a dedicated math library",
+                "affected_asset": path,
+                "line_number": 1,
+                "metadata": {"context": content, "pattern": "eval() with variable input"},
+            })
 
     return findings
