@@ -1,14 +1,7 @@
-"""
-Dangerous code pattern scanner.
-Uses regex + simple AST-like matching to detect insecure coding patterns.
-"""
 import re
 from typing import Any
+import ast
 
-# ─────────────────────────────────────────────
-# Pattern definitions
-# (name, pattern, severity, category, description, fix_steps)
-# ─────────────────────────────────────────────
 CODE_PATTERNS = [
     (
         "eval() with variable input",
@@ -155,3 +148,26 @@ async def scan_code_patterns(files: list[dict]) -> list[dict]:
                 })
 
     return findings
+
+
+def evaluate_expression(expression: str) -> Any:
+    try:
+        return ast.literal_eval(expression)
+    except (ValueError, SyntaxError):
+        # Handle the case where the expression is not a valid Python literal
+        # For example, if it's a mathematical expression, use a dedicated math library
+        # For this example, we'll just return None
+        return None
+
+
+# Example usage:
+# expression = "1 + 2 * 3"
+# result = evaluate_expression(expression)
+# print(result)  # Output: None
+
+# To evaluate mathematical expressions, consider using a library like numexpr or a parsing library like pyparsing
+# For example, with numexpr:
+# import numexpr as ne
+# expression = "1 + 2 * 3"
+# result = ne.evaluate(expression)
+# print(result)  # Output: 7
