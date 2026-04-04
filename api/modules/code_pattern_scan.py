@@ -96,17 +96,41 @@ CODE_PATTERNS = [
     ),
     (
         "Debug mode enabled (Node/Express)",
-        re.compile(r"(?i)NODE_ENV\s*=\s*['\"]?development['\"]?|app\.set\s*\(\s*['\"]env['\"],\s*['\"]development['\"]", re.MULTILINE),
+        re.compile(r"(?i)NODE_ENV\s*=\s*['\"]?development['\"]?|app\.set\s*\(\s*['\"]env['\"],\s*['\"]development['\"]\s*\)", re.MULTILINE),
         "low", "debug_mode",
         "The application appears to be configured for development mode, which may expose verbose error messages in production.",
         "1. Set NODE_ENV=production in your production environment\n2. Never hardcode NODE_ENV=development in deployed code",
     ),
     (
         "JWT 'none' algorithm",
-        re.compile(r"(?i)algorithm\s*[=:]\s*['\"]none['\"]|alg\s*[=:]\s*['\"]none['\"]", re.MULTILINE),
+        re.compile(r'(?i)algorithm\s*[=:]\s*[\'"]none[\'"]|alg\s*[=:]\s*[\'"]none[\'"]', re.MULTILINE),
         "critical", "jwt_none_alg",
         "Your code uses the 'none' algorithm for JWT tokens. This means tokens have no signature — anyone can craft a valid token for any user, completely bypassing authentication.",
         "1. Always use a real algorithm: RS256 (recommended) or HS256\n2. Verify that your JWT library rejects 'none' algorithm by default\n3. Never allow the algorithm to be specified in the token payload",
+    ),
+    (
+        "Hardcoded Private IP Address",
+        re.compile(
+            r"""['"](?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|127\.\d{1,3}\.\d{1,3}\.\d{1,3})['"]""",
+            re.MULTILINE,
+        ),
+        "medium", "information_disclosure",
+        "A private/internal IP address is hardcoded in your source code. This exposes your internal network topology to anyone who reads the code, including attackers accessing your repository.",
+        "1. Move all internal IPs to environment variables\n2. Use service discovery or DNS names instead of hardcoded IPs\n3. Add .env to .gitignore and use .env.example with placeholder values",
+    ),
+    (
+        "Docker: Privileged Container",
+        re.compile(r"--privileged", re.MULTILINE),
+        "critical", "container_security",
+        "A --privileged Docker container is defined. This gives the container full access to the host system. A compromised privileged container lets attackers escape and gain root on the server.",
+        "1. Remove --privileged from all container definitions\n2. Grant only specific capabilities using --cap-add\n3. Use rootless containers for additional isolation",
+    ),
+    (
+        "Docker: Secret in ENV instruction",
+        re.compile(r"(?i)^\s*ENV\s+(PASSWORD|SECRET|API_KEY|TOKEN|AWS_SECRET|DATABASE_URL)\s*=\s*\S+", re.MULTILINE),
+        "critical", "container_security",
+        "A Dockerfile sets a secret value in an ENV instruction. Docker image layers are permanent — secrets are baked into the image and visible via 'docker history' to anyone with image access.",
+        "1. Never set secrets in Dockerfile ENV instructions\n2. Pass secrets at runtime: docker run -e SECRET=value\n3. Use Docker secrets, Vault, or AWS Secrets Manager in production",
     ),
 ]
 

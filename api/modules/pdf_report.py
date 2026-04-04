@@ -78,9 +78,10 @@ def generate_pdf(scan: dict, findings: list[dict]) -> bytes:
 
     # Executive Summary
     ai_report = scan.get("ai_report", {}) or {}
-    exec_summary = ai_report.get("executive_summary", "No summary available.")
+    import html
+    exec_summary = html.escape(ai_report.get("executive_summary", "No summary available."))
     story.append(Paragraph("Executive Summary", h2_style))
-    story.append(Paragraph(exec_summary, body_style))
+    story.append(Paragraph(exec_summary.replace("\n", "<br/>"), body_style))
     story.append(Spacer(1, 6*mm))
 
     # Findings
@@ -97,8 +98,9 @@ def generate_pdf(scan: dict, findings: list[dict]) -> bytes:
         sev_label = sev.upper()
 
         # Finding header row
+        title_text = html.escape(finding.get('title', 'Finding'))
         header_data = [[
-            Paragraph(f"<b>{i}. {finding.get('title', 'Finding')}</b>", body_style),
+            Paragraph(f"<b>{i}. {title_text}</b>", body_style),
             Paragraph(f"<b>{sev_label}</b>", ParagraphStyle("sev", fontSize=9, textColor=sev_color, alignment=1)),
         ]]
         header_table = Table(header_data, colWidths=[140*mm, 30*mm])
@@ -113,12 +115,15 @@ def generate_pdf(scan: dict, findings: list[dict]) -> bytes:
         story.append(header_table)
 
         if finding.get("affected_asset"):
-            story.append(Paragraph(f"<i>Asset: {finding['affected_asset']}</i>", small_style))
+            asset_text = html.escape(finding['affected_asset'])
+            story.append(Paragraph(f"<i>Asset: {asset_text}</i>", small_style))
         if finding.get("description"):
-            story.append(Paragraph(finding["description"], body_style))
+            desc_text = html.escape(finding["description"])
+            story.append(Paragraph(desc_text.replace("\n", "<br/>"), body_style))
         if finding.get("fix_steps"):
+            fix_text = html.escape(finding["fix_steps"])
             story.append(Paragraph("<b>How to fix:</b>", body_style))
-            story.append(Paragraph(finding["fix_steps"].replace("\n", "<br/>"), body_style))
+            story.append(Paragraph(fix_text.replace("\n", "<br/>"), body_style))
         story.append(Spacer(1, 4*mm))
 
     # Footer

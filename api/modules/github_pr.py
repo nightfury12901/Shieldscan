@@ -3,7 +3,15 @@ import httpx
 import uuid
 from urllib.parse import urlparse
 
-async def generate_github_autofix_pr(repo_url: str, pat: str, file_path: str, new_content: str, title: str, description: str) -> str:
+
+async def generate_github_autofix_pr(
+    repo_url: str,
+    pat: str,
+    file_path: str,
+    new_content: str,
+    title: str,
+    description: str,
+) -> str:
     """
     Creates a new branch on the GitHub repository, updates the specific file,
     and opens a Pull Request with the fix.
@@ -12,87 +20,133 @@ async def generate_github_autofix_pr(repo_url: str, pat: str, file_path: str, ne
     if not pat:
         raise ValueError("A GitHub Personal Access Token is required to generate a Pull Request.")
 
-    # Parse owner/repo from URL
-    path_parts = urlparse(repo_url).path.strip("/").split("/")
+    # Parse owner/repo from URL — strip .git suffix if present
+    path_raw = urlparse(repo_url).path.strip("/")
+    path_parts = path_raw.split("/")
     if len(path_parts) < 2:
         raise ValueError("Invalid GitHub repository URL")
-    owner, repo = path_parts[0], path_parts[1]
+    owner = path_parts[0]
+    repo = path_parts[1]
+    if repo.endswith(".git"):
+        repo = repo[:-4]
+
+    # Sanitise file_path — must never start with /
+    file_path = file_path.lstrip("/")
 
     headers = {
         "Authorization": f"Bearer {pat}",
         "Accept": "application/vnd.github.v3+json",
-        "X-GitHub-Api-Version": "2022-11-28"
+        "X-GitHub-Api-Version": "2022-11-28",
     }
 
-    async with httpx.AsyncClient(timeout=15) as client:
-        # 1. Get default branch (main or master)
-        resp = await client.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)
+    async with httpx.AsyncClient(timeout=30) as client:
+        # ── 1. Get default branch ────────────────────────────────────
+        resp = await client.get(
+            f"https://api.github.com/repos/{owner}/{repo}", headers=headers
+        )
         if resp.status_code != 200:
-            raise ValueError(f"Could not access repository. Make sure PAT has repo access. {resp.text}")
+            raise ValueError(
+                f"Could not access repository. Check PAT has 'repo' scope. "
+                f"Status {resp.status_code}: {resp.text[:300]}"
+            )
         default_branch = resp.json().get("default_branch", "main")
 
-        # 2. Get default branch SHA
-        resp = await client.get(f"https://api.github.com/repos/{owner}/{repo}/git/ref/heads/{default_branch}", headers=headers)
-        if resp.status_code != 200:
-            raise ValueError("Could not find default branch SHA")
-        base_sha = resp.json()["object"]["sha"]
+        # ── 2. Get default branch SHA via refs endpoint ──────────────
+        sha_resp = await client.get(
+            f"https://api.github.com/repos/{owner}/{repo}/git/ref/heads/{default_branch}",
+            headers=headers,
+        )
+        if sha_resp.status_code == 200:
+            base_sha = sha_resp.json()["object"]["sha"]
+        else:
+            # Fallback: use the branches endpoint
+            branch_resp = await client.get(
+                f"https://api.github.com/repos/{owner}/{repo}/branches/{default_branch}",
+                headers=headers,
+            )
+            if branch_resp.status_code != 200:
+                raise ValueError(
+                    f"Could not resolve default branch SHA. "
+                    f"Status {branch_resp.status_code}: {branch_resp.text[:300]}"
+                )
+            base_sha = branch_resp.json()["commit"]["sha"]
 
-        # 3. Create new branch
+        # ── 3. Create new branch ─────────────────────────────────────
         branch_name = f"shieldscan-autofix-{uuid.uuid4().hex[:8]}"
-        resp = await client.post(
+        create_resp = await client.post(
             f"https://api.github.com/repos/{owner}/{repo}/git/refs",
             headers=headers,
-            json={"ref": f"refs/heads/{branch_name}", "sha": base_sha}
+            json={"ref": f"refs/heads/{branch_name}", "sha": base_sha},
         )
-        if resp.status_code not in (201, 200):
-            raise ValueError(f"Failed to create branch {branch_name}: {resp.text}")
+        if create_resp.status_code not in (200, 201):
+            raise ValueError(
+                f"Failed to create branch '{branch_name}': "
+                f"{create_resp.status_code} — {create_resp.text[:300]}"
+            )
 
-        # 4. Get current file SHA on the new branch
-        resp = await client.get(
+        # ── 4. Get current file SHA on the new branch (if it exists) ─
+        file_resp = await client.get(
             f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}?ref={branch_name}",
-            headers=headers
+            headers=headers,
         )
         file_sha = None
-        if resp.status_code == 200:
-            # File exists
-            file_data = resp.json()
+        if file_resp.status_code == 200:
+            file_data = file_resp.json()
             if isinstance(file_data, list):
-                raise ValueError(f"{file_path} is a directory, not a file.")
-            file_sha = file_data["sha"]
-        elif resp.status_code != 404:
-            raise ValueError(f"Could not fetch original file: {resp.text}")
+                raise ValueError(f"'{file_path}' is a directory, not a file.")
+            file_sha = file_data.get("sha")
+        elif file_resp.status_code not in (404, 422):
+            raise ValueError(
+                f"Could not fetch file '{file_path}' on branch '{branch_name}': "
+                f"{file_resp.status_code} — {file_resp.text[:300]}"
+            )
 
-        # 5. Commit the new file to the branch
+        # ── 5. Commit patched file ───────────────────────────────────
         encoded_content = base64.b64encode(new_content.encode("utf-8")).decode("utf-8")
-        put_data = {
-            "message": f"Security fix by ShieldScan: {title}",
+        put_data: dict = {
+            "message": f"security: ShieldScan auto-fix — {title}",
             "content": encoded_content,
-            "branch": branch_name
+            "branch": branch_name,
         }
         if file_sha:
             put_data["sha"] = file_sha
 
-        resp = await client.put(
+        put_resp = await client.put(
             f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}",
             headers=headers,
-            json=put_data
+            json=put_data,
         )
-        if resp.status_code not in (200, 201):
-            raise ValueError(f"Failed to commit file update: {resp.text}")
+        if put_resp.status_code not in (200, 201):
+            raise ValueError(
+                f"Failed to commit patched file: "
+                f"{put_resp.status_code} — {put_resp.text[:300]}"
+            )
 
-        # 6. Open Pull Request
-        pr_data = {
-            "title": f"🛡️ Security Fix: {title}",
-            "body": f"ShieldScan has generated this Auto-Fix to patch a security vulnerability.\n\n### Details\n{description}\n\n*Review this code thoroughly before merging!*",
-            "head": branch_name,
-            "base": default_branch
-        }
-        resp = await client.post(
+        # ── 6. Open Pull Request ─────────────────────────────────────
+        pr_body = (
+            f"## 🛡️ ShieldScan Auto-Fix\n\n"
+            f"This pull request was automatically generated by **ShieldScan** to patch "
+            f"a detected security vulnerability.\n\n"
+            f"### Vulnerability\n**{title}**\n\n"
+            f"{description}\n\n"
+            f"---\n"
+            f"> ⚠️ **Review this code carefully before merging.** "
+            f"AI-generated patches may require adjustments for your specific context."
+        )
+        pr_resp = await client.post(
             f"https://api.github.com/repos/{owner}/{repo}/pulls",
             headers=headers,
-            json=pr_data
+            json={
+                "title": f"🛡️ Security Fix: {title}",
+                "body": pr_body,
+                "head": branch_name,
+                "base": default_branch,
+            },
         )
-        if resp.status_code != 201:
-            raise ValueError(f"Failed to create Pull Request: {resp.text}")
+        if pr_resp.status_code != 201:
+            raise ValueError(
+                f"Failed to create Pull Request: "
+                f"{pr_resp.status_code} — {pr_resp.text[:300]}"
+            )
 
-        return resp.json()["html_url"]
+        return pr_resp.json()["html_url"]

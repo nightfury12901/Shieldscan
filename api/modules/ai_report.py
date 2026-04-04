@@ -33,7 +33,7 @@ async def generate_ai_report(findings: list[dict]) -> dict:
         "description": f.get("description", "")[:200],
     } for f in top_findings], indent=2)
 
-    for model in ["llama3-70b-8192", "llama3-8b-8192"]:
+    for model in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
