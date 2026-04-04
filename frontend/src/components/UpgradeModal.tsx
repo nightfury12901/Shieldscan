@@ -168,7 +168,7 @@ export default function UpgradeModal({ userId, onClose, onSuccess }: UpgradeModa
             <p style={{ fontSize: '13px', fontWeight: 500, color: '#fff', margin: '0 0 3px' }}>10 security scans</p>
             <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', margin: 0 }}>One-time premium pass</p>
           </div>
-          <span style={{ fontSize: '22px', fontWeight: 500, color: '#fff', fontFamily: 'monospace' }}>₹199</span>
+          <span style={{ fontSize: '22px', fontWeight: 500, color: '#fff', fontFamily: 'monospace' }}>₹9</span>
         </div>
 
         {/* Purchase Button */}

@@ -30,7 +30,7 @@ class ApplyPromoRequest(BaseModel):
     promo_code: str
 
 # Price configuration
-AMOUNT_PAISE = 19900  # ₹199.00
+AMOUNT_PAISE = 900  # ₹9.00 (Test price)
 CREDITS_PER_PURCHASE = 10
 
 def create_order(req: CreateOrderRequest):
