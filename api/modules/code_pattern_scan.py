@@ -4,6 +4,7 @@ Uses regex + simple AST-like matching to detect insecure coding patterns.
 """
 import re
 from typing import Any
+import ast
 
 # ─────────────────────────────────────────────
 # Pattern definitions
@@ -179,3 +180,38 @@ async def scan_code_patterns(files: list[dict]) -> list[dict]:
                 })
 
     return findings
+
+
+def parse_expression(expression: str):
+    try:
+        tree = ast.parse(expression, mode='eval')
+        return tree
+    except SyntaxError:
+        return None
+
+
+def evaluate_expression(expression: str):
+    tree = parse_expression(expression)
+    if tree is None:
+        return None
+    return eval(compile(tree, filename="<ast>", mode='eval'))
+
+
+def safer_eval(expression: str):
+    tree = parse_expression(expression)
+    if tree is None:
+        return None
+    # Check if the expression is a simple math expression
+    if isinstance(tree.body, (ast.Num, ast.UnaryOp, ast.BinOp)):
+        return evaluate_expression(expression)
+    else:
+        return None
+
+
+# Example usage:
+expression = "1 + 2 * 3"
+result = safer_eval(expression)
+if result is not None:
+    print(f"The result of the expression is: {result}")
+else:
+    print("The expression is not a simple math expression or is invalid.")
