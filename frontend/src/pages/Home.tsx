@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { UploadCloud, Coins } from 'lucide-react'
+import UpgradeModal from '../components/UpgradeModal'
 import { supabase } from '../lib/supabase'
-import { 
-  Code, Package, Globe, ShieldCheck, Server, Key, Lock, AlertTriangle, Cpu, Zap, GitBranch, UploadCloud
-} from 'lucide-react'
+import './Home.css'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'url' | 'github' | 'zip'>('github')
@@ -11,7 +11,32 @@ export default function Home() {
   const [pat, setPat] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [credits, setCredits] = useState<number | null>(null)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
   const navigate = useNavigate()
+
+  const fetchCredits = async (uid: string) => {
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
+      const res = await fetch(`${baseUrl}/api/credits?user_id=${uid}`)
+      if (res.ok) {
+        const data = await res.json()
+        setCredits(data.scans_remaining)
+      }
+    } catch (err) {
+      console.error('Failed to fetch credits', err)
+    }
+  }
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setUserId(session.user.id)
+        fetchCredits(session.user.id)
+      }
+    })
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -58,6 +83,11 @@ export default function Home() {
       return
     }
 
+    if (credits !== null && credits <= 0) {
+      setShowUpgradeModal(true)
+      return
+    }
+
     let finalTarget = target.trim()
     // Default placeholders
     if (!finalTarget) {
@@ -86,8 +116,17 @@ export default function Home() {
       })
       
       const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'Scan failed to start')
+      if (!res.ok) {
+        if (res.status === 402) {
+           setShowUpgradeModal(true)
+           setLoading(false)
+           return
+        }
+        throw new Error(data.detail || 'Scan failed to start')
+      }
       
+      // Successfully started scan
+      if (credits !== null) setCredits(credits - 1)
       navigate(`/results/${data.scan_id}`)
     } catch (err: any) {
       setError(err.message)
@@ -126,120 +165,125 @@ export default function Home() {
   }
 
   return (
-    <div className="landing-container fade-in mt-10">
-      <p className="landing-eyebrow">// Security Audit Platform</p>
-      <h1 className="landing-h1" id="hero-heading" aria-label="One URL. One Click. Total Visibility."></h1>
-      <p className="landing-sub">
-        ShieldScan runs 9 concurrent security modules against your GitHub
-        repository or live URL and delivers a plain-English risk report
-        in under 60 seconds.
-      </p>
-
-      {error && (
-        <div className="text-red-400 mb-4 text-sm bg-red-400/10 p-3 rounded-lg border border-red-500/20 max-w-lg mx-auto">
-          {error}
-        </div>
-      )}
-
-      <div className="scan-card gradient-border relative">
-        <div className="scan-card-line"></div>
-        <div className="tab-row" role="tablist">
-          <button 
-            type="button"
-            className={`tab-btn ${activeTab === 'github' ? 'active' : ''}`}
-            role="tab" 
-            aria-selected={activeTab === 'github'} 
-            onClick={() => { setActiveTab('github'); setTarget(''); setError(''); }}
-          >
-            <GitBranch size={16} /> GitHub Repository
-          </button>
-          <button 
-            type="button"
-            className={`tab-btn ${activeTab === 'url' ? 'active' : ''}`}
-            role="tab" 
-            aria-selected={activeTab === 'url'} 
-            onClick={() => { setActiveTab('url'); setTarget(''); setError(''); }}
-          >
-            <Globe size={16} /> Live URL
-          </button>
-          <button 
-            type="button"
-            className={`tab-btn ${activeTab === 'zip' ? 'active' : ''}`}
-            role="tab" 
-            aria-selected={activeTab === 'zip'} 
-            onClick={() => { setActiveTab('zip'); setTarget(''); setError(''); }}
-          >
-            <Package size={16} /> ZIP File
-          </button>
-        </div>
-
-        <div className="input-wrap">
-          {activeTab === 'zip' ? (
-             <div className="flex flex-col items-center justify-center p-6 border border-dashed border-gray-700/50 rounded-lg w-full bg-[#111] hover:bg-[#151515] transition cursor-pointer relative">
-               <input 
-                 type="file" 
-                 accept=".zip" 
-                 className="absolute inset-0 opacity-0 cursor-pointer" 
-                 onChange={handleFileUpload}
-               />
-               <UploadCloud className="w-8 h-8 text-gray-500 mb-2" />
-               <span className="text-sm text-gray-400">
-                 {target ? target : 'Click or drop .zip file (Max 50MB)'}
-               </span>
-             </div>
-          ) : (
-            <>
-              <input 
-                type="text" 
-                id="scan-url-input" 
-                className="scan-input"
-                placeholder={activeTab === 'github' ? 'https://github.com/username/repo' : 'https://yourdomain.com'}
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleScan(); }}
-                autoComplete="off" 
-                spellCheck="false"
-                aria-label="Enter target to scan"
-              />
-              <span className="input-hint">Enter ↵</span>
-            </>
-          )}
-        </div>
-
-        {activeTab === 'github' && (
-          <div className="input-wrap animate-in fade-in slide-in-from-top-2">
-            <input 
-               type="password" 
-               placeholder="GitHub PAT (Optional, for private repos)"
-               value={pat}
-               onChange={e => setPat(e.target.value)}
-               className="scan-input"
-               style={{ paddingRight: '18px' }}
-            />
+    <div className="home-wrapper fade-in">
+      <div className="page">
+        <div className="col-left">
+          <div className="hero-text">
+            <div className="kicker">ONE URL · ONE CLICK</div>
+            <h1>Total<br/><em>visibility.</em><br/>Instantly.</h1>
+            <p className="subtitle">Nine concurrent security modules scan your repository or live URL and return a plain-English risk report — in under sixty seconds.</p>
           </div>
-        )}
+        </div>
 
-        <button 
-          className="btn-start-scan disabled:opacity-50 disabled:cursor-not-allowed" 
-          onClick={() => handleScan()}
-          disabled={loading}
-        >
-          <Zap size={16} aria-hidden="true" />
-          {loading ? 'Initializing Scan...' : 'Start Scan'}
-        </button>
+        <div className="col-right">
+          <div className="form-area">
+            <div className="form-header">SCAN TARGET</div>
+
+            <div className="tabs">
+              <button 
+                className={`tab ${activeTab === 'github' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('github'); setTarget(''); setError(''); }}
+              >GitHub repo</button>
+              <button 
+                className={`tab ${activeTab === 'url' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('url'); setTarget(''); setError(''); }}
+              >Live URL</button>
+              <button 
+                className={`tab ${activeTab === 'zip' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('zip'); setTarget(''); setError(''); }}
+              >ZIP file</button>
+            </div>
+
+            {error && (
+              <div className="text-red-400 mb-4 text-sm bg-red-400/10 p-3 rounded-lg border border-red-500/20 w-full">
+                {error}
+              </div>
+            )}
+
+            {activeTab === 'zip' ? (
+               <div className="flex flex-col items-center justify-center p-6 border border-dashed border-[#ffffff14] rounded-lg w-full bg-[#111] hover:bg-[#151515] transition cursor-pointer relative mb-4">
+                 <input 
+                   type="file" 
+                   accept=".zip" 
+                   className="absolute inset-0 opacity-0 cursor-pointer" 
+                   onChange={handleFileUpload}
+                 />
+                 <UploadCloud className="w-8 h-8 text-[#e6e6e640] mb-2" />
+                 <span className="text-sm text-[#e6e6e640]">
+                   {target ? target : 'Click or drop .zip file (Max 50MB)'}
+                 </span>
+               </div>
+            ) : (
+              <div className="field">
+                <label className="field-label">{activeTab === 'url' ? 'TARGET URL' : 'REPOSITORY URL'}</label>
+                <input 
+                  type="text" 
+                  className="scan-inp" 
+                  placeholder={activeTab === 'github' ? 'https://github.com/username/repo' : 'https://yourdomain.com'}
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleScan(); }}
+                />
+              </div>
+            )}
+
+            {activeTab === 'github' && (
+              <div className="field fade-in" style={{ marginTop: '10px' }}>
+                <label className="field-label">PERSONAL ACCESS TOKEN <span style={{opacity: 0.5}}>— OPTIONAL</span></label>
+                <input 
+                  type="password" 
+                  className="scan-inp" 
+                  placeholder="For private repositories"
+                  value={pat}
+                  onChange={e => setPat(e.target.value)}
+                />
+              </div>
+            )}
+
+            {credits !== null && credits >= 0 && (
+               <div className="mt-4 flex items-center justify-between bg-[#161616] border border-[#ffffff14] p-3 rounded-md text-sm text-[#e6e6e6cc]">
+                  <div className="flex items-center gap-2">
+                     <Coins size={14} className="text-[#e6e6e640]" />
+                     <span><strong className="text-white">{credits}</strong> scans remaining</span>
+                  </div>
+                  <button onClick={() => setShowUpgradeModal(true)} className="text-xs text-white hover:underline transition">Upgrade</button>
+               </div>
+            )}
+
+            <button 
+              className="scan-btn" 
+              onClick={() => handleScan()}
+              disabled={loading}
+            >
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><path d="M6.5 1L5 5.5H9L5.5 12L7 7.5H3L6.5 1Z"/></svg>
+              {loading ? 'Initializing Scan...' : 'Start scan'}
+            </button>
+          </div>
+
+          <div className="modules-footer">
+            <div className="modules-label">ACTIVE MODULES</div>
+            <div className="tags">
+              <div className="tag">static analysis</div>
+              <div className="tag">dependency audit</div>
+              <div className="tag">external audit</div>
+              <div className="tag">ssl / tls</div>
+              <div className="tag">dns scan</div>
+              <div className="tag">secret detection</div>
+              <div className="tag">auth headers</div>
+              <div className="tag">cve database</div>
+              <div className="tag">ai auto-fix</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="module-pills" role="list">
-        <div className="module-pill" role="listitem"><Code size={14} />Static Analysis</div>
-        <div className="module-pill" role="listitem"><Package size={14} />Dependency Audit</div>
-        <div className="module-pill" role="listitem"><Globe size={14} />External Audit</div>
-        <div className="module-pill" role="listitem"><ShieldCheck size={14} />SSL/TLS Check</div>
-        <div className="module-pill" role="listitem"><Server size={14} />DNS Scan</div>
-        <div className="module-pill" role="listitem"><Key size={14} />Secret Detection</div>
-        <div className="module-pill" role="listitem"><Lock size={14} />Auth Headers</div>
-        <div className="module-pill" role="listitem"><AlertTriangle size={14} />CVE Database</div>
-        <div className="module-pill" role="listitem"><Cpu size={14} />AI Auto-Fix</div>
-      </div>
+      {showUpgradeModal && userId && (
+        <UpgradeModal 
+          userId={userId} 
+          onClose={() => setShowUpgradeModal(false)}
+          onSuccess={() => fetchCredits(userId)}
+        />
+      )}
     </div>
   )
 }

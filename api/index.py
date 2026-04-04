@@ -41,6 +41,10 @@ from modules.supply_chain_scan import scan_supply_chain
 from modules.rate_limit_scan import scan_rate_limiting
 from modules.open_redirect_scan import scan_open_redirects
 from modules.lookalike_domain_scan import scan_lookalike_domains
+from modules.payment import (
+    create_order, verify_payment, apply_promo, decrement_credits,
+    CreateOrderRequest, VerifyPaymentRequest, ApplyPromoRequest
+)
 
 # ─────────────────────────────────────────────
 # App setup
@@ -192,6 +196,12 @@ async def health():
 @app.post("/api/scan/url")
 async def scan_url(req: UrlScanRequest, background_tasks: BackgroundTasks):
     url = validate_url(req.url)
+    if not req.user_id:
+        raise HTTPException(401, "User ID required to scan")
+    
+    # Deduct credit (will raise 402 if not enough)
+    decrement_credits(req.user_id)
+    
     supabase = get_supabase()
 
     scan_row = supabase.table("scans").insert({
@@ -466,6 +476,11 @@ async def chat(req: ChatRequest):
 @app.post("/api/scan/github")
 async def scan_github(req: GithubScanRequest, background_tasks: BackgroundTasks):
     repo_url = validate_github_url(req.repo_url)
+    if not req.user_id:
+        raise HTTPException(401, "User ID required to scan")
+    
+    decrement_credits(req.user_id)
+
     supabase = get_supabase()
 
     scan_row = supabase.table("scans").insert({
@@ -599,6 +614,11 @@ async def _fetch_github_files(repo_url: str, pat: Optional[str]) -> list[dict]:
 # ─────────────────────────────────────────────
 @app.post("/api/scan/zip")
 async def scan_zip(req: ZipScanRequest, background_tasks: BackgroundTasks):
+    if not req.user_id:
+        raise HTTPException(401, "User ID required to scan")
+        
+    decrement_credits(req.user_id)
+
     supabase = get_supabase()
     scan_row = supabase.table("scans").insert({
         "user_id": req.user_id,
@@ -766,3 +786,26 @@ async def get_report_pdf(scan_id: str):
     supabase.table("scans").update({"pdf_url": public_url}).eq("id", scan_id).execute()
 
     return {"pdf_url": public_url}
+
+# ─────────────────────────────────────────────
+# PAYMENT & FREEMIUM APIs
+# ─────────────────────────────────────────────
+@app.get("/api/credits")
+async def get_user_credits(user_id: str):
+    supabase = get_supabase()
+    res = supabase.table("user_credits").select("scans_remaining").eq("user_id", user_id).execute()
+    if not res.data:
+        return {"scans_remaining": 0}
+    return {"scans_remaining": res.data[0]["scans_remaining"]}
+
+@app.post("/api/payment/create-order")
+async def handle_create_order(req: CreateOrderRequest):
+    return create_order(req)
+
+@app.post("/api/payment/verify")
+async def handle_verify_payment(req: VerifyPaymentRequest):
+    return verify_payment(req)
+
+@app.post("/api/payment/apply-promo")
+async def handle_apply_promo(req: ApplyPromoRequest):
+    return apply_promo(req)

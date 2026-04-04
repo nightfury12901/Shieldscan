@@ -10,65 +10,83 @@ const CanvasBackground: React.FC = () => {
     if (!ctx) return;
 
     let w: number, h: number;
-    let dots: any[] = [];
     let bgAnimFrame: number;
+    let columns: number;
+    let drops: number[] = [];
+    const fontSize = 18; // Increased from 14
+    // Classic hex/binary with some symbols looks like a security scanner
+    const chars = '01#$@&*WXQ[]{}<>+=_-:;010101010101ABDCGEFXH'.split('');
 
     const resize = () => {
       w = canvas.width = window.innerWidth;
       h = canvas.height = window.innerHeight;
-      createDots();
+      columns = Math.floor(w / fontSize);
+      drops = [];
+      for (let x = 0; x < columns; x++) {
+        // Randomize initial vertical positions so it doesn't all drop at once
+        drops[x] = Math.random() * (h / fontSize);
+      }
     };
 
-    const createDots = () => {
-      dots = [];
-      const sp = 85;
-      for (let r = 0; r < Math.ceil(h / sp) + 1; r++) {
-        for (let c = 0; c < Math.ceil(w / sp) + 1; c++) {
-          dots.push({
-            x: c * sp,
-            y: r * sp,
-            ox: c * sp,
-            oy: r * sp,
-            phase: Math.random() * Math.PI * 2,
-            speed: 0.001 + Math.random() * 0.002,
-            amp: 1 + Math.random() * 2,
-          });
+    let mouseX = -1000;
+    let mouseY = -1000;
+    
+    const onMouseMove = (e: MouseEvent) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    };
+
+    const draw = () => {
+      // Semi-transparent black to create trailing effect.
+      // Adjust alpha for trail length (lower = longer trails)
+      ctx.fillStyle = 'rgba(14, 14, 14, 0.15)'; 
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.font = `${fontSize}px "DM Mono", monospace`;
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = chars[Math.floor(Math.random() * chars.length)];
+        
+        let tx = i * fontSize;
+        let ty = drops[i] * fontSize;
+
+        // Interactive logic: text glows bright white when the cursor is nearby
+        const dist = Math.sqrt((tx - mouseX) ** 2 + (ty - mouseY) ** 2);
+        
+        if (dist < 150) {
+          // Extremely bright text under cursor (increased radius)
+          ctx.fillStyle = 'rgba(255, 255, 255, 1)'; 
+        } else {
+          // Normal background matrix color
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
         }
-      }
-    };
 
-    const draw = (t: number) => {
-      ctx.clearRect(0, 0, w, h);
-      for (const d of dots) {
-        d.x = d.ox + Math.sin(t * d.speed + d.phase) * d.amp;
-        d.y = d.oy + Math.cos(t * d.speed * 0.7 + d.phase) * d.amp;
-      }
+        ctx.fillText(text, tx, ty);
 
-      // Dots only (Minimalist)
-      for (const d of dots) {
-        const cx = w / 2, cy = h / 2;
-        const dist = Math.sqrt((d.x - cx) ** 2 + (d.y - cy) ** 2);
-        const maxD = Math.sqrt(w * w + h * h) / 2;
-        const falloff = 1 - Math.min(dist / maxD, 1);
-        ctx.beginPath();
-        ctx.arc(d.x, d.y, 1, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${0.02 + falloff * 0.06})`;
-        ctx.fill();
+        // Reset drop randomly to create varied flowing column heights
+        if (ty > h && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+        
+        // Speed of the rain - reduced from 0.8
+        drops[i] += 0.3;
       }
       bgAnimFrame = requestAnimationFrame(draw);
     };
 
     window.addEventListener('resize', resize);
+    window.addEventListener('mousemove', onMouseMove);
     resize();
     bgAnimFrame = requestAnimationFrame(draw);
 
     return () => {
       window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', onMouseMove);
       cancelAnimationFrame(bgAnimFrame);
     };
   }, []);
 
-  return <canvas ref={canvasRef} id="bg-canvas" aria-hidden="true" />;
+  return <canvas ref={canvasRef} id="bg-canvas" aria-hidden="true" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: -1, pointerEvents: 'none' }} />;
 };
 
 export default CanvasBackground;
