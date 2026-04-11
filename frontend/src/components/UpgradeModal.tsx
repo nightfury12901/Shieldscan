@@ -175,10 +175,14 @@ export default function UpgradeModal({ userId, onClose, onSuccess }: UpgradeModa
         <button 
           onClick={handleRazorpayPayment}
           disabled={loading}
-          style={{ width: '100%', background: '#fff', color: '#000', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '13px', fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', marginBottom: '1rem', letterSpacing: '0.02em', opacity: loading ? 0.7 : 1 }}
+          style={{ width: '100%', background: '#fff', color: '#000', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '13px', fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', marginBottom: '0.5rem', letterSpacing: '0.02em', opacity: loading ? 0.7 : 1 }}
         >
           {loading ? 'Processing...' : 'Purchase now'}
         </button>
+
+        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', textAlign: 'center', margin: '0 0 1rem 0' }}>
+          *Note: Billed securely as "AiFast" on your statement
+        </p>
 
         {/* OR Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
