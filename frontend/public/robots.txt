@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Prevent search engines from trying to index private/dynamic routes
+Disallow: /results/
+Disallow: /history
+Disallow: /report/
+
+Sitemap: https://shieldyourcode.vercel.app/sitemap.xml
