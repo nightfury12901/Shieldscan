@@ -30,8 +30,8 @@ class ApplyPromoRequest(BaseModel):
     promo_code: str
 
 # Price configuration
-AMOUNT_PAISE = 900  # ₹9.00 (Test price)
-CREDITS_PER_PURCHASE = 10
+AMOUNT_PAISE = 19900  # ₹199.00
+CREDITS_PER_PURCHASE = 5
 
 def create_order(req: CreateOrderRequest):
     client = get_razorpay_client()
@@ -174,7 +174,15 @@ def decrement_credits(user_id: str, supabase=None):
     try:
         credit_res = supabase.table("user_credits").select("scans_remaining").eq("user_id", user_id).execute()
         
-        if not credit_res.data or credit_res.data[0]["scans_remaining"] <= 0:
+        if not credit_res.data:
+            # Grant 3 free scans, use 1 now
+            supabase.table("user_credits").insert({
+                "user_id": user_id,
+                "scans_remaining": 2
+            }).execute()
+            return 2
+            
+        if credit_res.data[0]["scans_remaining"] <= 0:
             raise HTTPException(402, "Insufficient credits. Please upgrade to scan.")
             
         current_credits = credit_res.data[0]["scans_remaining"]

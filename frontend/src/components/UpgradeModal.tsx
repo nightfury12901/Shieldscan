@@ -118,11 +118,11 @@ export default function UpgradeModal({ userId, onClose, onSuccess }: UpgradeModa
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-[400px] bg-[#1a1a1a] shadow-2xl font-sans"
+        className="relative w-full max-w-[750px] bg-[#1a1a1a] shadow-2xl font-sans"
         style={{ 
           border: '0.5px solid rgba(255,255,255,0.1)', 
           borderRadius: '12px',
-          padding: '1.75rem' 
+          padding: '2.5rem 2rem' 
         }}
       >
         
@@ -135,17 +135,17 @@ export default function UpgradeModal({ userId, onClose, onSuccess }: UpgradeModa
         </button>
 
         {/* Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0, opacity: 0.7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.5rem' }}>
+          <svg width="20" height="20" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0, opacity: 0.9 }}>
             <path d="M7.5 1L13 4V8.5C13 11.5 10.5 14 7.5 14.5C4.5 14 2 11.5 2 8.5V4L7.5 1Z" stroke="white" strokeWidth="1" fill="none"/>
           </svg>
-          <span style={{ fontSize: '15px', fontWeight: 500, color: '#fff' }}>
-            Upgrade required
+          <span style={{ fontSize: '18px', fontWeight: 600, color: '#fff' }}>
+            Choose your plan
           </span>
         </div>
 
-        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.65, marginBottom: '1.5rem' }}>
-          You have exhausted your free scan quota. Unlock 10 additional security scans to continue analyzing your repositories.
+        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.65, marginBottom: '2rem' }}>
+          You have exhausted your 3 free scans. Unlock additional security scans to continue analyzing your repositories.
         </p>
 
         {error && (
@@ -162,27 +162,58 @@ export default function UpgradeModal({ userId, onClose, onSuccess }: UpgradeModa
            </div>
         )}
 
-        {/* Price Box */}
-        <div style={{ border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <p style={{ fontSize: '13px', fontWeight: 500, color: '#fff', margin: '0 0 3px' }}>10 security scans</p>
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', margin: 0 }}>One-time premium pass</p>
+        {/* Pricing Cards Container */}
+        <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+          
+          {/* Left Card (₹199) */}
+          <div style={{ flex: '1 1 280px', border: '1.5px solid #3b82f6', borderRadius: '12px', padding: '1.5rem', position: 'relative', display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.02)' }}>
+            <div style={{ position: 'absolute', top: '-12px', left: '1.5rem', background: '#1e3a8a', color: '#93c5fd', fontSize: '12px', fontWeight: 500, padding: '4px 12px', borderRadius: '16px' }}>
+              best seller
+            </div>
+            <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.5rem', marginTop: '0.5rem' }}>ONE-TIME SCAN</div>
+            <div style={{ fontSize: '42px', fontWeight: 700, color: '#fff', lineHeight: 1 }}>₹199</div>
+            <div style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '1.5rem', marginTop: '0.5rem' }}>for 5 scans</div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, marginBottom: '2rem' }}>
+              <div style={{ fontSize: '14px', color: '#d1d5db', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '14px' }}>full report, all issues</div>
+              <div style={{ fontSize: '14px', color: '#d1d5db', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '14px' }}>severity labels (critical/high/low)</div>
+              <div style={{ fontSize: '14px', color: '#d1d5db', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '14px' }}>PDF download</div>
+              <div style={{ fontSize: '14px', color: '#d1d5db' }}>1 GitHub PR auto-fix</div>
+            </div>
+
+            <button 
+              onClick={handleRazorpayPayment}
+              disabled={loading}
+              style={{ width: '100%', background: '#fff', color: '#000', border: 'none', borderRadius: '8px', padding: '14px', fontSize: '15px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', letterSpacing: '0.02em', opacity: loading ? 0.7 : 1 }}
+            >
+              {loading ? 'Processing...' : 'Get 5 Scans'}
+            </button>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: '1rem', marginBottom: 0 }}>
+              *Note: Billed securely as "AiFast"
+            </p>
           </div>
-          <span style={{ fontSize: '22px', fontWeight: 500, color: '#fff', fontFamily: 'monospace' }}>₹9</span>
+
+          {/* Right Card (₹499) */}
+          <div style={{ flex: '1 1 280px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '1.5rem', background: 'rgba(255,255,255,0.04)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.5rem', marginTop: '0.5rem' }}>MONTHLY</div>
+            <div style={{ fontSize: '42px', fontWeight: 700, color: '#fff', lineHeight: 1 }}>₹499</div>
+            <div style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '1.5rem', marginTop: '0.5rem' }}>per month</div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, marginBottom: '2rem' }}>
+               <div style={{ fontSize: '14px', color: '#d1d5db', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '14px' }}>unlimited scans</div>
+               <div style={{ fontSize: '14px', color: '#d1d5db', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '14px' }}>unlimited PR fixes</div>
+               <div style={{ fontSize: '14px', color: '#d1d5db', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '14px' }}>weekly auto-scan</div>
+               <div style={{ fontSize: '14px', color: '#d1d5db' }}>email alerts</div>
+            </div>
+
+            <button 
+              disabled={true}
+              style={{ width: '100%', background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', border: 'none', borderRadius: '8px', padding: '14px', fontSize: '15px', fontWeight: 600, cursor: 'not-allowed', letterSpacing: '0.02em', marginTop: 'auto' }}
+            >
+              Coming Soon
+            </button>
+          </div>
         </div>
-
-        {/* Purchase Button */}
-        <button 
-          onClick={handleRazorpayPayment}
-          disabled={loading}
-          style={{ width: '100%', background: '#fff', color: '#000', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '13px', fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', marginBottom: '0.5rem', letterSpacing: '0.02em', opacity: loading ? 0.7 : 1 }}
-        >
-          {loading ? 'Processing...' : 'Purchase now'}
-        </button>
-
-        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', textAlign: 'center', margin: '0 0 1rem 0' }}>
-          *Note: Billed securely as "AiFast" on your statement
-        </p>
 
         {/* OR Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>

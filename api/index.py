@@ -795,7 +795,14 @@ async def get_user_credits(user_id: str):
     supabase = get_supabase()
     res = supabase.table("user_credits").select("scans_remaining").eq("user_id", user_id).execute()
     if not res.data:
-        return {"scans_remaining": 0}
+        try:
+            supabase.table("user_credits").insert({
+                "user_id": user_id,
+                "scans_remaining": 3
+            }).execute()
+            return {"scans_remaining": 3}
+        except Exception:
+            return {"scans_remaining": 0}
     return {"scans_remaining": res.data[0]["scans_remaining"]}
 
 @app.post("/api/payment/create-order")
