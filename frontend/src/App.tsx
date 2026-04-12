@@ -8,6 +8,7 @@ import Auth from './pages/Auth'
 import SharedReport from './pages/SharedReport'
 import { Plus, LogIn, LogOut, Menu, X, Activity } from 'lucide-react'
 import CanvasBackground from './components/CanvasBackground'
+import './App.css'
 
 function AppShell() {
   const location = useLocation();
