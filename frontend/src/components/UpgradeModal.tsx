@@ -118,11 +118,10 @@ export default function UpgradeModal({ userId, onClose, onSuccess }: UpgradeModa
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-[750px] bg-[#1a1a1a] shadow-2xl font-sans"
+        className="upgrade-modal-content relative w-full bg-[#1a1a1a] shadow-2xl font-sans"
         style={{ 
           border: '0.5px solid rgba(255,255,255,0.1)', 
-          borderRadius: '12px',
-          padding: '2.5rem 2rem' 
+          borderRadius: '12px'
         }}
       >
         
@@ -163,7 +162,7 @@ export default function UpgradeModal({ userId, onClose, onSuccess }: UpgradeModa
         )}
 
         {/* Pricing Cards Container */}
-        <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+        <div className="pricing-cards-container">
           
           {/* Left Card (₹199) */}
           <div style={{ flex: '1 1 280px', border: '1.5px solid #3b82f6', borderRadius: '12px', padding: '1.5rem', position: 'relative', display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.02)' }}>

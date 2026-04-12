@@ -59,8 +59,8 @@ export default function History() {
           </Link>
         </div>
       ) : (
-        <div className="bg-[#0a0a0a] border border-[#222] rounded-xl overflow-hidden shadow-2xl">
-          <table className="w-full text-left border-collapse">
+        <div className="bg-[#0a0a0a] border border-[#222] rounded-xl overflow-hidden shadow-2xl overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="border-b border-[#222] bg-[#111]">
                 <th className="px-6 py-4 font-display text-xs text-gray-500 uppercase tracking-widest font-semibold">Target</th>

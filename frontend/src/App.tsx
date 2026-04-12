@@ -6,7 +6,7 @@ import Results from './pages/Results'
 import History from './pages/History'
 import Auth from './pages/Auth'
 import SharedReport from './pages/SharedReport'
-import { Plus, LogIn, LogOut } from 'lucide-react'
+import { Plus, LogIn, LogOut, Menu, X } from 'lucide-react'
 import CanvasBackground from './components/CanvasBackground'
 
 function AppShell() {
@@ -14,12 +14,17 @@ function AppShell() {
   const isLanding = location.pathname === '/';
   const hasSidebar = location.pathname.startsWith('/results') || location.pathname.startsWith('/history');
   const [session, setSession] = useState<any>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -54,33 +59,79 @@ function AppShell() {
               </div>
             </Link>
 
-            <div className="nav-right flex items-center gap-4">
-              <div className="nav-status-pill hidden sm:flex" aria-label="9 modules active">
-                <span className="status-dot" aria-hidden="true"></span>
-                9 Modules Active
-              </div>
-              
-              {session ? (
-                <>
-                  <Link to="/history" className="btn-ghost text-xs" aria-label="View scan history">
-                    History
+            <div className="nav-right">
+              {/* Desktop Nav Items */}
+              <div className="nav-desktop-items hidden md:flex items-center gap-4">
+                <div className="nav-status-pill" aria-label="9 modules active">
+                  <span className="status-dot" aria-hidden="true"></span>
+                  9 Modules Active
+                </div>
+                
+                {session ? (
+                  <>
+                    <Link to="/history" className="btn-ghost text-xs">History</Link>
+                    <button onClick={handleLogout} className="btn-ghost px-2" title="Logout">
+                      <LogOut size={16} />
+                    </button>
+                  </>
+                ) : (
+                  <Link to="/auth" className="btn-ghost">
+                    <LogIn size={16} /> Login
                   </Link>
-                  <button onClick={handleLogout} className="btn-ghost px-2" aria-label="Logout" title="Logout">
-                    <LogOut size={16} />
-                  </button>
-                </>
-              ) : (
-                <Link to="/auth" className="btn-ghost" aria-label="Login">
-                  <LogIn size={16} /> Login
-                </Link>
-              )}
+                )}
 
-              <Link to="/" className="btn-primary" aria-label="Start a new scan">
-                <Plus size={16} aria-hidden="true" />
-                New Scan
-              </Link>
+                <Link to="/" className="btn-primary">
+                  <Plus size={16} aria-hidden="true" />
+                  New Scan
+                </Link>
+              </div>
+
+              {/* Mobile Menu Toggle */}
+              <button 
+                className="md:hidden p-2 text-white/70 hover:text-white"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                aria-label="Toggle menu"
+              >
+                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
             </div>
           </nav>
+
+          {/* Mobile Side Menu */}
+          <div className={`mobile-menu ${isMenuOpen ? 'open' : ''}`}>
+            <div className="mobile-menu-inner">
+               <div className="flex flex-col gap-6 pt-8">
+                  <Link to="/" className="mobile-nav-link">
+                    <Plus size={20} /> New Scan
+                  </Link>
+                  {session ? (
+                    <>
+                      <Link to="/history" className="mobile-nav-link">
+                        <Activity size={20} /> History
+                      </Link>
+                      <button onClick={handleLogout} className="mobile-nav-link w-full text-left">
+                        <LogOut size={20} /> Logout
+                      </button>
+                    </>
+                  ) : (
+                    <Link to="/auth" className="mobile-nav-link">
+                      <LogIn size={20} /> Login
+                    </Link>
+                  )}
+                  
+                  <div className="mt-8 pt-8 border-t border-white/10 opacity-50">
+                     <div className="flex items-center gap-2 text-xs tracking-widest uppercase mb-4">
+                        <span className="status-dot"></span>
+                        9 Modules Active
+                     </div>
+                     <p className="text-[10px] uppercase tracking-widest leading-relaxed">
+                        ShieldScan Platform v2.0<br/>
+                        Advanced Security Matrix
+                     </p>
+                  </div>
+               </div>
+            </div>
+          </div>
         </header>
 
         <div id="main-area" className={hasSidebar ? 'has-sidebar' : ''}>

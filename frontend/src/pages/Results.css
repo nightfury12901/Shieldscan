@@ -1,0 +1,182 @@
+/* Results Page Scoped Styles */
+
+.results-layout {
+  display: flex;
+  min-height: calc(100vh - 53px);
+  background: #0d1117;
+}
+
+#sidebar {
+  width: 250px;
+  background: #0d1117;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 53px;
+  height: calc(100vh - 53px);
+  overflow-y: auto;
+  z-index: 40;
+}
+
+.results-main {
+  flex: 1;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+.results-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+}
+
+/* Mobile Adjustments for Sidebar */
+@media (max-width: 1024px) {
+  #sidebar {
+    display: none !important; /* Hide the laptop-style floating sidebar */
+  }
+
+  .results-inner {
+    padding: 1.5rem 1rem;
+  }
+
+  .mobile-stats-header {
+    display: block !important;
+    background: rgba(13, 17, 23, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+}
+
+.section-heading {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spotlight-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.spotlight-card:hover {
+  border-color: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+}
+
+.compliance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 480px) {
+  .compliance-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .severity-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .kpi-row {
+    flex-wrap: wrap;
+    gap: 1.5rem;
+  }
+
+  .kpi-item {
+     min-width: 80px;
+  }
+}
+
+.finding-card {
+  margin-bottom: 1rem;
+}
+
+.finding-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 0.75rem;
+}
+
+.finding-title {
+  font-weight: 500;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.finding-desc {
+  font-size: 0.875rem;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+}
+
+.finding-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-autofix, .btn-chat {
+  font-size: 0.75rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-autofix {
+  background: #fff;
+  color: #000;
+  border: none;
+}
+
+.btn-chat {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+/* Gauge styling */
+.risk-score-widget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 0;
+  position: relative;
+}
+
+.risk-score-num {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.risk-score-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.4);
+  margin-top: 4px;
+}

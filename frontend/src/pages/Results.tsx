@@ -13,6 +13,7 @@ import {
 import { Line } from 'react-chartjs-2'
 import AutoFixReviewModal from '../components/AutoFixReviewModal'
 import FindingChatDrawer from '../components/FindingChatDrawer'
+import './Results.css'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
@@ -489,6 +490,17 @@ export default function Results() {
         </div>
       ) : (
         <div className="results-inner fade-in">
+          {/* NEW: Mobile Stats Header - only visible on small screens */}
+          <div className="mobile-stats-header lg:hidden">
+            <SidebarContent 
+              scan={scan} 
+              criticalCount={critical.length} 
+              mediumCount={medium.length} 
+              lowCount={low.length} 
+              onExport={handleDownloadPdf} 
+            />
+          </div>
+
           <section className="results-section reveal visible" id="sec-summary">
             <h2 className="section-heading">Executive Summary</h2>
             <div className="summary-card spotlight-card">
