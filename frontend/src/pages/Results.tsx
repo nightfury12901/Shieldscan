@@ -78,6 +78,9 @@ function SidebarContent({ scan, criticalCount, mediumCount, lowCount, onExport }
       </div>
       <div className="sb-divider"></div>
       <div className="sb-section-sm">
+        <button className="btn-download-pdf" onClick={onExport} style={{ marginBottom: '1.25rem' }}>
+          <Download size={16} />Download PDF
+        </button>
         <nav className="sb-nav">
           {[
             { id: 'sec-summary', icon: <FileText size={16} />, label: 'Executive Summary' },
@@ -89,15 +92,7 @@ function SidebarContent({ scan, criticalCount, mediumCount, lowCount, onExport }
               {icon}{label}
             </button>
           ))}
-          <button className="sb-nav-link" onClick={onExport}>
-            <Download size={16} />Export Report
-          </button>
         </nav>
-      </div>
-      <div className="sb-bottom">
-        <button className="btn-download-pdf" onClick={onExport}>
-          <Download size={16} />Download PDF
-        </button>
       </div>
     </>
   )
