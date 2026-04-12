@@ -24,7 +24,7 @@ export default function History() {
     const { data } = await supabase
       .from('scans')
       .select('*')
-      // .eq('user_id', userId) // Uncomment when DB tracks user_id securely
+      .eq('user_id', _userId)
       .order('created_at', { ascending: false })
       .limit(50)
 
