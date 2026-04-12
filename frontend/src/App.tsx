@@ -6,7 +6,7 @@ import Results from './pages/Results'
 import History from './pages/History'
 import Auth from './pages/Auth'
 import SharedReport from './pages/SharedReport'
-import { Plus, LogIn, LogOut, Menu, X } from 'lucide-react'
+import { Plus, LogIn, LogOut, Menu, X, Activity } from 'lucide-react'
 import CanvasBackground from './components/CanvasBackground'
 
 function AppShell() {
