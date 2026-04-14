@@ -6,6 +6,8 @@ import Results from './pages/Results'
 import History from './pages/History'
 import Auth from './pages/Auth'
 import SharedReport from './pages/SharedReport'
+import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 import { Plus, LogIn, LogOut, Menu, X, Activity } from 'lucide-react'
 import CanvasBackground from './components/CanvasBackground'
 import './App.css'
@@ -145,6 +147,8 @@ function AppShell() {
               <Route path="/history" element={<History />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/report/:uuid" element={<SharedReport />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
             </Routes>
           </main>
         </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { UploadCloud, Coins } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { UploadCloud, Coins, ShieldCheck, Lock } from 'lucide-react'
 import UpgradeModal from '../components/UpgradeModal'
 import { supabase } from '../lib/supabase'
 import './Home.css'
@@ -258,6 +258,16 @@ export default function Home() {
               <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><path d="M6.5 1L5 5.5H9L5.5 12L7 7.5H3L6.5 1Z"/></svg>
               {loading ? 'Initializing Scan...' : 'Start scan'}
             </button>
+
+            <div className="mt-5 flex items-center justify-center gap-3 text-xs text-[#e6e6e660]">
+               <div className="flex items-center gap-1.5 font-medium text-[#e6e6e690]">
+                 <ShieldCheck size={14} className="text-green-400" /> SOC 2 Compliant
+               </div>
+               <span>•</span>
+               <div className="flex items-center gap-1 font-medium text-[#e6e6e690]">
+                 <Lock size={12} /> Privacy Guaranteed
+               </div>
+            </div>
           </div>
 
           <div className="modules-footer">
@@ -272,6 +282,11 @@ export default function Home() {
               <div className="tag">auth headers</div>
               <div className="tag">cve database</div>
               <div className="tag">ai auto-fix</div>
+            </div>
+
+            <div className="mt-12 flex gap-6 text-[10px] uppercase font-mono tracking-widest text-[#e6e6e640]">
+              <Link to="/terms" className="hover:text-white transition">Terms & Conditions</Link>
+              <Link to="/privacy" className="hover:text-white transition">Privacy Policy</Link>
             </div>
           </div>
         </div>
