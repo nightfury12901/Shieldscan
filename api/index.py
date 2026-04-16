@@ -155,17 +155,20 @@ class UrlScanRequest(BaseModel):
     url: str
     user_id: Optional[str] = None
     webhook_url: Optional[str] = None
+    scan_id: Optional[str] = None  # Pre-created by frontend for instant navigation
 
 class GithubScanRequest(BaseModel):
     repo_url: str
     github_pat: Optional[str] = None
     user_id: Optional[str] = None
     webhook_url: Optional[str] = None
+    scan_id: Optional[str] = None  # Pre-created by frontend for instant navigation
 
 class ZipScanRequest(BaseModel):
     storage_path: str
     user_id: Optional[str] = None
     webhook_url: Optional[str] = None
+    scan_id: Optional[str] = None  # Pre-created by frontend for instant navigation
 
 class AutoFixGenerateRequest(BaseModel):
     scan_id: str
@@ -198,27 +201,35 @@ async def health():
 # POST /api/scan/url
 # ─────────────────────────────────────────────
 @app.post("/api/scan/url")
-async def scan_url(req: UrlScanRequest, background_tasks: BackgroundTasks):
+async def scan_url(req: UrlScanRequest):
     url = validate_url(req.url)
     if not req.user_id:
         raise HTTPException(401, "User ID required to scan")
-    
-    # Deduct credit (will raise 402 if not enough)
+
+    # Deduct credit server-side (security: never trust client to skip this)
     decrement_credits(req.user_id)
-    
+
     supabase = get_supabase()
 
-    scan_row = supabase.table("scans").insert({
-        "user_id": req.user_id,
-        "scan_type": "url",
-        "target": url,
-        "status": "running",
-        "progress": 0,
-    }).execute()
-    scan_id = scan_row.data[0]["id"]
+    if req.scan_id:
+        # Frontend pre-created the row — just mark it as running
+        scan_id = req.scan_id
+        supabase.table("scans").update({"status": "running", "progress": 0}).eq("id", scan_id).execute()
+    else:
+        # Fallback: create row here (legacy / direct API callers)
+        scan_row = supabase.table("scans").insert({
+            "user_id": req.user_id,
+            "scan_type": "url",
+            "target": url,
+            "status": "running",
+            "progress": 0,
+        }).execute()
+        scan_id = scan_row.data[0]["id"]
 
-    background_tasks.add_task(_run_url_scan, scan_id, url, req.webhook_url)
-    return {"scan_id": scan_id, "status": "running"}
+    # Run synchronously — Vercel kills background_tasks after response is sent.
+    # maxDuration=60 keeps this request alive while the scan completes.
+    await _run_url_scan(scan_id, url, req.webhook_url)
+    return {"scan_id": scan_id, "status": "done"}
 
 async def _run_webhook_wrapper(webhook_url: str, target: str, risk_score: int, findings: list, scan_id: str):
     if not webhook_url:
@@ -232,38 +243,44 @@ async def _run_webhook_wrapper(webhook_url: str, target: str, risk_score: int, f
 async def _run_url_scan(scan_id: str, url: str, webhook_url: str = None):
     supabase = get_supabase()
     try:
-        # Run all modules in parallel (original 9 + 6 new)
-        results = await asyncio.gather(
-            run_module("headers",       scan_headers(url)),
-            run_module("ssl",           scan_ssl(url)),
-            run_module("dns",           scan_dns(url)),
-            run_module("cms",           scan_cms(url)),
-            run_module("ports",         scan_ports(url)),
-            run_module("breach",        check_breach(url)),
-            run_module("blacklist",     check_blacklist(url)),
-            run_module("cve",           lookup_cves(url)),
-            run_module("zap",           scan_zap(url)),
-            # ── New URL modules ──────────────────────────────────────
-            run_module("cookies",       scan_cookies(url),        timeout=12),
-            run_module("robots",        scan_robots(url),         timeout=12),
-            run_module("supply_chain",  scan_supply_chain(url),   timeout=20),
-            run_module("rate_limit",    scan_rate_limiting(url),  timeout=30),
-            run_module("open_redirect", scan_open_redirects(url), timeout=25),
-            run_module("lookalike",     scan_lookalike_domains(url), timeout=30),
-        )
+        await update_progress(scan_id, 10)
 
+        # ── Batch 1: fast modules (timeout ≤ 15s each) ──────────────
+        fast_results = await asyncio.gather(
+            run_module("headers",       scan_headers(url),          timeout=12),
+            run_module("ssl",           scan_ssl(url),              timeout=12),
+            run_module("dns",           scan_dns(url),              timeout=12),
+            run_module("cms",           scan_cms(url),              timeout=12),
+            run_module("breach",        check_breach(url),          timeout=12),
+            run_module("blacklist",     check_blacklist(url),       timeout=12),
+            run_module("cve",           lookup_cves(url),           timeout=12),
+            run_module("cookies",       scan_cookies(url),          timeout=12),
+            run_module("robots",        scan_robots(url),           timeout=12),
+        )
+        await update_progress(scan_id, 50)
+
+        # ── Batch 2: slow/active modules (capped at 15s each) ───────
+        slow_results = await asyncio.gather(
+            run_module("ports",         scan_ports(url),            timeout=15),
+            run_module("zap",           scan_zap(url),              timeout=15),
+            run_module("supply_chain",  scan_supply_chain(url),     timeout=15),
+            run_module("rate_limit",    scan_rate_limiting(url),    timeout=15),
+            run_module("open_redirect", scan_open_redirects(url),   timeout=15),
+            run_module("lookalike",     scan_lookalike_domains(url),timeout=15),
+        )
+        await update_progress(scan_id, 80)
+
+        results = list(fast_results) + list(slow_results)
         module_statuses = {}
         all_findings = []
         for r in results:
             module_statuses[r["module"]] = r["status"]
             all_findings.extend(r.get("findings", []))
 
-        await update_progress(scan_id, 80)
-
         risk_score = compute_risk_score(all_findings)
         ai_report = await generate_ai_report(all_findings)
 
-        # Deduplicate URL findings based on title and severity (URL findings often lack affected_asset)
+        # Deduplicate URL findings based on title and severity
         unique_findings = []
         seen = set()
         for f in all_findings:
@@ -478,26 +495,30 @@ async def chat(req: ChatRequest):
 # POST /api/scan/github
 # ─────────────────────────────────────────────
 @app.post("/api/scan/github")
-async def scan_github(req: GithubScanRequest, background_tasks: BackgroundTasks):
+async def scan_github(req: GithubScanRequest):
     repo_url = validate_github_url(req.repo_url)
     if not req.user_id:
         raise HTTPException(401, "User ID required to scan")
-    
+
     decrement_credits(req.user_id)
 
     supabase = get_supabase()
 
-    scan_row = supabase.table("scans").insert({
-        "user_id": req.user_id,
-        "scan_type": "github",
-        "target": repo_url,
-        "status": "running",
-        "progress": 0,
-    }).execute()
-    scan_id = scan_row.data[0]["id"]
+    if req.scan_id:
+        scan_id = req.scan_id
+        supabase.table("scans").update({"status": "running", "progress": 0}).eq("id", scan_id).execute()
+    else:
+        scan_row = supabase.table("scans").insert({
+            "user_id": req.user_id,
+            "scan_type": "github",
+            "target": repo_url,
+            "status": "running",
+            "progress": 0,
+        }).execute()
+        scan_id = scan_row.data[0]["id"]
 
-    background_tasks.add_task(_run_github_scan, scan_id, repo_url, req.github_pat, req.webhook_url)
-    return {"scan_id": scan_id, "status": "running"}
+    await _run_github_scan(scan_id, repo_url, req.github_pat, req.webhook_url)
+    return {"scan_id": scan_id, "status": "done"}
 
 async def _run_github_scan(scan_id: str, repo_url: str, pat: Optional[str], webhook_url: Optional[str] = None):
     supabase = get_supabase()
@@ -617,24 +638,29 @@ async def _fetch_github_files(repo_url: str, pat: Optional[str]) -> list[dict]:
 # POST /api/scan/zip
 # ─────────────────────────────────────────────
 @app.post("/api/scan/zip")
-async def scan_zip(req: ZipScanRequest, background_tasks: BackgroundTasks):
+async def scan_zip(req: ZipScanRequest):
     if not req.user_id:
         raise HTTPException(401, "User ID required to scan")
-        
+
     decrement_credits(req.user_id)
 
     supabase = get_supabase()
-    scan_row = supabase.table("scans").insert({
-        "user_id": req.user_id,
-        "scan_type": "zip",
-        "target": req.storage_path,
-        "status": "running",
-        "progress": 0,
-    }).execute()
-    scan_id = scan_row.data[0]["id"]
 
-    background_tasks.add_task(_run_zip_scan, scan_id, req.storage_path)
-    return {"scan_id": scan_id, "status": "running"}
+    if req.scan_id:
+        scan_id = req.scan_id
+        supabase.table("scans").update({"status": "running", "progress": 0}).eq("id", scan_id).execute()
+    else:
+        scan_row = supabase.table("scans").insert({
+            "user_id": req.user_id,
+            "scan_type": "zip",
+            "target": req.storage_path,
+            "status": "running",
+            "progress": 0,
+        }).execute()
+        scan_id = scan_row.data[0]["id"]
+
+    await _run_zip_scan(scan_id, req.storage_path)
+    return {"scan_id": scan_id, "status": "done"}
 
 async def _run_zip_scan(scan_id: str, storage_path: str):
     import zipfile, tempfile, shutil, pathlib

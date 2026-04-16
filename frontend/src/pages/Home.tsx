@@ -75,7 +75,7 @@ export default function Home() {
 
   const handleScan = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
-    
+
     // Auth check
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
@@ -89,7 +89,6 @@ export default function Home() {
     }
 
     let finalTarget = target.trim()
-    // Default placeholders
     if (!finalTarget) {
       finalTarget = activeTab === 'github' ? 'https://github.com/nightfury12901/VigilX' : 'https://yourdomain.com'
     }
@@ -109,25 +108,44 @@ export default function Home() {
       if (activeTab === 'zip') payload.storage_path = `zip-uploads/${finalTarget}`
 
       const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
-      const res = await fetch(`${baseUrl}${endpoint}`, {
+
+      // ── Phase 1: Pre-create scan row in Supabase to get scan_id immediately ──
+      const scanTarget =
+        activeTab === 'url' ? finalTarget
+        : activeTab === 'github' ? finalTarget
+        : `zip-uploads/${finalTarget}`
+
+      const { data: scanRow, error: insertErr } = await supabase
+        .from('scans')
+        .insert({
+          user_id: session.user.id,
+          scan_type: activeTab,
+          target: scanTarget,
+          status: 'pending',
+          progress: 0,
+        })
+        .select('id')
+        .single()
+
+      if (insertErr || !scanRow?.id) {
+        throw new Error('Could not create scan record. Please try again.')
+      }
+
+      const scanId = scanRow.id
+
+      // ── Phase 2: Navigate immediately — user sees animated progress UI ──
+      if (credits !== null) setCredits(credits - 1)
+      navigate(`/results/${scanId}`)
+
+      // ── Phase 3: Fire-and-forget scan request ──
+      // The server runs the scan synchronously. We don't await it here
+      // because we're already on the results page watching via Supabase Realtime.
+      fetch(`${baseUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      
-      const data = await res.json()
-      if (!res.ok) {
-        if (res.status === 402) {
-           setShowUpgradeModal(true)
-           setLoading(false)
-           return
-        }
-        throw new Error(data.detail || 'Scan failed to start')
-      }
-      
-      // Successfully started scan
-      if (credits !== null) setCredits(credits - 1)
-      navigate(`/results/${data.scan_id}`)
+        body: JSON.stringify({ ...payload, scan_id: scanId }),
+      }).catch(() => { /* Supabase Realtime will surface any final status */ })
+
     } catch (err: any) {
       setError(err.message)
       setLoading(false)
