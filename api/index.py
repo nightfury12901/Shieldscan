@@ -523,6 +523,7 @@ async def scan_github(req: GithubScanRequest):
 async def _run_github_scan(scan_id: str, repo_url: str, pat: Optional[str], webhook_url: Optional[str] = None):
     supabase = get_supabase()
     try:
+        await update_progress(scan_id, 10)
         files = await _fetch_github_files(repo_url, pat)
         await update_progress(scan_id, 20)
 
@@ -532,14 +533,17 @@ async def _run_github_scan(scan_id: str, repo_url: str, pat: Optional[str], webh
             run_module("code_patterns", scan_code_patterns(files)),
             run_module("config_files",  scan_config_files(files)),
             run_module("auth_issues",   scan_auth_issues(files)),
+            return_exceptions=True
         )
+
+        valid_results = [r for r in results if not isinstance(r, Exception) and isinstance(r, dict)]
 
         await update_progress(scan_id, 80)
 
         all_findings = []
         module_statuses = {}
-        for r in results:
-            module_statuses[r["module"]] = r["status"]
+        for r in valid_results:
+            module_statuses[r.get("module", "unknown")] = r.get("status", "unknown")
             all_findings.extend(r.get("findings", []))
 
         risk_score = compute_risk_score(all_findings)
@@ -667,6 +671,7 @@ async def _run_zip_scan(scan_id: str, storage_path: str):
     supabase = get_supabase()
     tmp_dir = None
     try:
+        await update_progress(scan_id, 5)
         signed = supabase.storage.from_("zip-uploads").create_signed_url(
             storage_path.replace("zip-uploads/", ""), 300
         )
@@ -677,6 +682,8 @@ async def _run_zip_scan(scan_id: str, storage_path: str):
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(signed_url)
             zip_bytes = resp.content
+
+        await update_progress(scan_id, 15)
 
         if not zip_bytes[:4] == b"PK\x03\x04":
             raise ValueError("Invalid ZIP file (bad magic bytes)")
@@ -711,14 +718,18 @@ async def _run_zip_scan(scan_id: str, storage_path: str):
             run_module("code_patterns", scan_code_patterns(files)),
             run_module("config_files",  scan_config_files(files)),
             run_module("auth_issues",   scan_auth_issues(files)),
+            return_exceptions=True
         )
+
+        # Filter out Exceptions if any module timed out
+        valid_results = [r for r in results if not isinstance(r, Exception) and isinstance(r, dict)]
 
         await update_progress(scan_id, 80)
 
         all_findings = []
         module_statuses = {}
-        for r in results:
-            module_statuses[r["module"]] = r["status"]
+        for r in valid_results:
+            module_statuses[r.get("module", "unknown")] = r.get("status", "unknown")
             all_findings.extend(r.get("findings", []))
 
         risk_score = compute_risk_score(all_findings)
