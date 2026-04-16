@@ -13,14 +13,27 @@ interface RemediationGuideModalProps {
 type GuideType = 'ssl' | 'headers' | 'cookies' | 'cors' | 'rate_limit' | 'open_redirect' | 'auth' | 'generic'
 
 function detectGuideType(finding: any): GuideType {
-  const text = `${finding.title} ${finding.description} ${finding.category}`.toLowerCase()
-  if (['ssl', 'tls', 'certificate', 'https', 'hsts', 'cipher', 'expired cert'].some(k => text.includes(k))) return 'ssl'
+  const category = (finding.category || '').toLowerCase()
+  
+  // 1. Direct category matching (most accurate)
+  if (category.includes('ssl') || category.includes('tls')) return 'ssl'
+  if (category.includes('header')) return 'headers'
+  if (category.includes('cookie')) return 'cookies'
+  if (category.includes('cors')) return 'cors'
+  if (category.includes('rate_limit') || category.includes('rate limit')) return 'rate_limit'
+  if (category.includes('redirect')) return 'open_redirect'
+  if (category.includes('auth') || category.includes('login') || category.includes('credential')) return 'auth'
+
+  // 2. Fallback text matching (if category is generic or missing)
+  const text = `${finding.title} ${finding.description}`.toLowerCase()
+  if (['ssl', 'tls', 'certificate', 'hsts', 'cipher', 'expired cert'].some(k => text.includes(k))) return 'ssl' // Removed 'https' as it's too common
   if (['content-security-policy', 'csp', 'x-frame', 'x-content-type', 'security header', 'missing header', 'referrer-policy'].some(k => text.includes(k))) return 'headers'
   if (['cookie', 'httponly', 'samesite', 'secure flag'].some(k => text.includes(k))) return 'cookies'
   if (['cors', 'cross-origin', 'allow-origin'].some(k => text.includes(k))) return 'cors'
   if (['rate limit', 'rate-limit', 'throttl', 'brute force'].some(k => text.includes(k))) return 'rate_limit'
   if (['open redirect', 'redirect', 'location header'].some(k => text.includes(k))) return 'open_redirect'
   if (['auth', 'login', 'password', 'session', 'jwt', 'credential'].some(k => text.includes(k))) return 'auth'
+  
   return 'generic'
 }
 
