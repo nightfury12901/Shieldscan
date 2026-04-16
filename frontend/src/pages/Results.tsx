@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import {
   Loader2, Download, SearchCode, Sparkles, AlertCircle,
-  FileText, Activity, Shield, ChevronDown, MessageSquare,
+  FileText, Activity, Shield, ChevronDown, MessageSquare, Lock, FileDown,
 } from 'lucide-react'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -13,6 +13,7 @@ import {
 import { Line } from 'react-chartjs-2'
 import AutoFixReviewModal from '../components/AutoFixReviewModal'
 import FindingChatDrawer from '../components/FindingChatDrawer'
+import SslGuideModal from '../components/SslGuideModal'
 import './Results.css'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
@@ -101,6 +102,12 @@ function SidebarContent({ scan, criticalCount, mediumCount, lowCount, onExport }
 // ────────────────────────────────────────────────────────
 // FindingCard — 2-step autofix + chat drawer
 // ────────────────────────────────────────────────────────
+// Helper: ALL URL scan findings get the remediation guide button.
+// (guide content adapts per category — SSL, headers, CORS, rate limit, etc.)
+function isUrlRemediable(_finding: any): boolean {
+  return true  // every URL finding can have contextual guidance
+}
+
 function FindingCard({ finding, scan }: { finding: any; scan: any }) {
   const [open, setOpen] = useState(false)
   // Auto-fix state
@@ -112,13 +119,22 @@ function FindingCard({ finding, scan }: { finding: any; scan: any }) {
   const [autofixError, setAutofixError] = useState('')
   // Chat drawer
   const [chatOpen, setChatOpen] = useState(false)
+  // SSL guide modal
+  const [sslGuideOpen, setSslGuideOpen] = useState(false)
+  // Fixed-file download
+  const [fixedFileState, setFixedFileState] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [fixedFileError, setFixedFileError] = useState('')
 
   const isCritical = finding.severity === 'critical'
   const isMedium = finding.severity === 'medium'
   const sevClass = isCritical ? 'critical' : isMedium ? 'medium' : 'low'
   const stepLines = (finding.fix_steps || '').split('\n').filter((l: string) => l.trim().length > 0)
   const isGithubScan = scan?.scan_type === 'github'
+  const isZipScan = scan?.scan_type === 'zip'
+  const isUrlScan = scan?.scan_type === 'url'
   const hasAsset = !!finding.affected_asset
+  const showRemediationGuide = isUrlScan && isUrlRemediable(finding)
+  const showFixedFileButton = isZipScan && hasAsset
 
   const handleAutoFix = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -153,6 +169,37 @@ function FindingCard({ finding, scan }: { finding: any; scan: any }) {
     } catch (err: any) {
       setAutofixError(err.message)
       setAutofixStep('error')
+    }
+  }
+
+  const handleDownloadFixedFile = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setFixedFileState('loading')
+    setFixedFileError('')
+    try {
+      const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || ''
+      const res = await fetch(`${baseUrl}/api/remediate/fixed-file`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scan_id: scan.id, finding_id: finding.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Failed to generate fixed file')
+      // Trigger browser download
+      const blob = new Blob([data.content], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = data.filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      setFixedFileState('idle')
+    } catch (err: any) {
+      setFixedFileError(err.message)
+      setFixedFileState('error')
     }
   }
 
@@ -191,6 +238,36 @@ function FindingCard({ finding, scan }: { finding: any; scan: any }) {
               Ask AI
             </button>
 
+            {/* Remediation Guide — all URL scan findings */}
+            {showRemediationGuide && (
+              <button
+                className="btn-ssl-guide"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSslGuideOpen(true) }}
+                title="Step-by-step remediation guide for this finding"
+                id={`remediation-guide-btn-${finding.id}`}
+              >
+                <Lock size={13} />
+                Remediation Guide
+              </button>
+            )}
+
+            {/* Download Fixed File — ZIP scans with patchable file assets */}
+            {showFixedFileButton && (
+              <button
+                className="btn-fixed-file"
+                onClick={handleDownloadFixedFile}
+                disabled={fixedFileState === 'loading'}
+                title="AI generates a fixed version of this file for download"
+                id={`fixed-file-btn-${finding.id}`}
+              >
+                {fixedFileState === 'loading' ? (
+                  <><Loader2 size={13} className="animate-spin" />Generating…</>
+                ) : (
+                  <><FileDown size={13} />Download Fix</>
+                )}
+              </button>
+            )}
+
             {/* Auto-fix button — only for GitHub scans with patchable assets */}
             {isGithubScan && hasAsset && autofixStep !== 'success' && (
               <button
@@ -222,10 +299,15 @@ function FindingCard({ finding, scan }: { finding: any; scan: any }) {
           </div>
         </div>
 
-        {/* Error message */}
+        {/* Error messages */}
         {autofixStep === 'error' && autofixError && (
           <div className="text-xs text-red-400 mt-2 bg-red-400/10 rounded p-2 border border-red-500/20">
             {autofixError}
+          </div>
+        )}
+        {fixedFileState === 'error' && fixedFileError && (
+          <div className="text-xs text-red-400 mt-2 bg-red-400/10 rounded p-2 border border-red-500/20">
+            ⚠ {fixedFileError}
           </div>
         )}
 
@@ -262,6 +344,15 @@ function FindingCard({ finding, scan }: { finding: any; scan: any }) {
         <FindingChatDrawer
           finding={finding}
           onClose={() => setChatOpen(false)}
+        />
+      )}
+
+      {/* Remediation Guide Modal */}
+      {sslGuideOpen && (
+        <SslGuideModal
+          finding={finding}
+          affectedUrl={scan.target}
+          onClose={() => setSslGuideOpen(false)}
         />
       )}
     </>

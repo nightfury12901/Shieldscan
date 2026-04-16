@@ -30,7 +30,7 @@ SECRET_PATTERNS = [
     ("NPM Token",              r"npm_[A-Za-z0-9]{36}",                                             "critical"),
     ("Heroku API Key",         r"(?i)heroku.{0,20}['\"][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}['\"]", "critical"),
     ("Database URL",           r"(?i)(postgres|mysql|mongodb|redis)://[^:\s]+:[^@\s]+@[^\s]+",     "critical"),
-    (".env Password Line",     r"(?i)^(DB_PASSWORD|DATABASE_PASSWORD|MYSQL_PASSWORD|POSTGRES_PASSWORD)\s*=\s*.+", "critical"),
+    (".env Password Line",     r"(?i)^(DB_PASSWORD|DATABASE_PASSWORD|MYSQL_PASSWORD|POSTGRES_PASSWORD)\s*=\s*\S.*", "critical"),
 ]
 
 # Compiled patterns

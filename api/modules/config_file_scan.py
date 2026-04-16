@@ -61,6 +61,19 @@ DANGEROUS_FILE_PATTERNS = [
 DOCKER_COMPOSE_PASSWORD = re.compile(r"(?i)(MYSQL_ROOT_PASSWORD|POSTGRES_PASSWORD|MARIADB_ROOT_PASSWORD)\s*:\s*[^\n]+")
 
 
+def _has_real_content(content: str) -> bool:
+    """Return True only if the file has at least one non-empty, non-comment line."""
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            return True
+    return False
+
+
+# Filename suffixes that are always safe to ignore even if they match a pattern
+SAFE_SUFFIXES = {".example", ".sample", ".template", ".dist"}
+
+
 async def scan_config_files(files: list[dict]) -> list[dict]:
     findings = []
     seen_paths = set()
@@ -71,6 +84,15 @@ async def scan_config_files(files: list[dict]) -> list[dict]:
 
         # Skip node_modules / dist
         if any(skip in path for skip in ["node_modules/", "vendor/", ".git/", "dist/"]):
+            continue
+
+        # Skip template / example env files (e.g. .env.example, .env.sample)
+        lower_path = path.lower()
+        if any(lower_path.endswith(suffix) for suffix in SAFE_SUFFIXES):
+            continue
+        # Also skip if the filename itself contains 'example' or 'sample'
+        basename = lower_path.split("/")[-1]
+        if any(kw in basename for kw in ("example", "sample", "template", ".dist")):
             continue
 
         for pattern_tuple in DANGEROUS_FILE_PATTERNS:
@@ -94,6 +116,19 @@ async def scan_config_files(files: list[dict]) -> list[dict]:
                             "title": f"Hardcoded Database Password in Docker Compose",
                             "description": "A database password is hardcoded in your docker-compose file. Anyone with repo access can read your production database password.",
                             "fix_steps": "1. Remove hardcoded passwords from docker-compose.yml\n2. Use environment variables: ${MYSQL_ROOT_PASSWORD}\n3. Store secrets in a .env file (not committed) or a secrets manager",
+                            "affected_asset": path,
+                        })
+                elif category == "exposed_env":
+                    # Only flag .env files that actually contain real key-value pairs
+                    # (non-empty, non-comment lines). An empty or comment-only .env
+                    # is a false positive.
+                    if _has_real_content(content):
+                        findings.append({
+                            "severity": severity,
+                            "category": category,
+                            "title": f"Sensitive File Exposed in Repository: {path.split('/')[-1]}",
+                            "description": description,
+                            "fix_steps": fix_steps,
                             "affected_asset": path,
                         })
                 else:

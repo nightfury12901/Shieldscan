@@ -180,3 +180,67 @@
   color: rgba(255,255,255,0.4);
   margin-top: 4px;
 }
+
+/* ── SSL Guide Button ──────────────────────── */
+.btn-ssl-guide {
+  font-size: 0.75rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(44, 232, 112, 0.08);
+  border: 1px solid rgba(44, 232, 112, 0.3);
+  color: #2ce870;
+  font-weight: 500;
+}
+
+.btn-ssl-guide:hover {
+  background: rgba(44, 232, 112, 0.16);
+  border-color: rgba(44, 232, 112, 0.55);
+  box-shadow: 0 0 12px rgba(44, 232, 112, 0.2);
+  transform: translateY(-1px);
+}
+
+/* ── Download Fixed File Button ────────────── */
+.btn-fixed-file {
+  font-size: 0.75rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(99, 179, 237, 0.08);
+  border: 1px solid rgba(99, 179, 237, 0.3);
+  color: #63b3ed;
+  font-weight: 500;
+}
+
+.btn-fixed-file:hover:not(:disabled) {
+  background: rgba(99, 179, 237, 0.16);
+  border-color: rgba(99, 179, 237, 0.55);
+  box-shadow: 0 0 12px rgba(99, 179, 237, 0.2);
+  transform: translateY(-1px);
+}
+
+.btn-fixed-file:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Action row wrapping on small screens ── */
+.finding-actions-right {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.finding-actions-left {
+  display: flex;
+  align-items: center;
+}

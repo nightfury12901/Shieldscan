@@ -183,6 +183,10 @@ class ChatRequest(BaseModel):
     message: str
     history: Optional[list[dict]] = []  # [{role: "user"|"assistant", content: "..."}]
 
+class FixedFileRequest(BaseModel):
+    scan_id: str
+    finding_id: str
+
 # ─────────────────────────────────────────────
 # HEALTH CHECK
 # ─────────────────────────────────────────────
@@ -816,3 +820,199 @@ async def handle_verify_payment(req: VerifyPaymentRequest):
 @app.post("/api/payment/apply-promo")
 async def handle_apply_promo(req: ApplyPromoRequest):
     return apply_promo(req)
+
+# ─────────────────────────────────────────────
+# POST /api/remediate/fixed-file
+# For ZIP scans: re-fetches the offending file, AI-rewrites it with
+# ${ENV_VAR_NAME} placeholders in place of real secrets, returns for download.
+# ─────────────────────────────────────────────
+@app.post("/api/remediate/fixed-file")
+async def get_fixed_file(req: FixedFileRequest):
+    import zipfile, io as _io
+
+    supabase = get_supabase()
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if not groq_api_key:
+        raise HTTPException(500, "Groq API key not configured")
+
+    # Load the finding
+    finding_res = supabase.table("findings").select("*").eq("id", req.finding_id).execute()
+    if not finding_res.data:
+        raise HTTPException(404, "Finding not found")
+    finding = finding_res.data[0]
+
+    # Load the scan (must be a zip scan)
+    scan_res = supabase.table("scans").select("*").eq("id", req.scan_id).execute()
+    if not scan_res.data:
+        raise HTTPException(404, "Scan not found")
+    scan = scan_res.data[0]
+
+    if scan["scan_type"] != "zip":
+        raise HTTPException(400, "Fixed-file download is only available for ZIP scans.")
+
+    file_path = (finding.get("affected_asset") or "").replace("\\", "/").lstrip("/")
+    if not file_path:
+        raise HTTPException(400, "This finding has no associated file to fix.")
+
+    # Re-download the original ZIP from Supabase storage
+    storage_path = scan["target"].replace("zip-uploads/", "")
+    try:
+        signed = supabase.storage.from_("zip-uploads").create_signed_url(storage_path, 120)
+        signed_url = signed.get("signedURL") or signed.get("signedUrl")
+        if not signed_url:
+            raise ValueError("Cannot generate signed URL")
+    except Exception as e:
+        raise HTTPException(500, f"Could not access original ZIP: {e}")
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(signed_url)
+        if resp.status_code != 200:
+            raise HTTPException(500, "Failed to download original ZIP file")
+        zip_bytes = resp.content
+
+    # Extract only the target file from the ZIP
+    original_content: str | None = None
+    try:
+        with zipfile.ZipFile(_io.BytesIO(zip_bytes)) as zf:
+            # Flexible matching: strip top-level directory prefix if present
+            for name in zf.namelist():
+                norm = name.replace("\\", "/").lstrip("/")
+                # Match either exact path or path without leading directory
+                if norm == file_path or norm.endswith("/" + file_path) or file_path.endswith("/" + norm.split("/", 1)[-1]):
+                    original_content = zf.read(name).decode("utf-8", errors="ignore")
+                    break
+    except Exception as e:
+        raise HTTPException(500, f"Could not read file from ZIP: {e}")
+
+    if original_content is None:
+        raise HTTPException(404, f"File '{file_path}' not found inside the uploaded ZIP.")
+
+    # Build a category-aware prompt so the AI applies the RIGHT fix strategy
+    category = finding.get("category", "")
+    title    = finding.get("title", "")
+    fix_hint = finding.get("fix_steps", "")
+
+    # Determine fix strategy based on vulnerability category
+    if category in ("hardcoded_secret", "exposed_env", "potential_secret", "exposed_config"):
+        strategy = (
+            "STRATEGY — Secrets / Credentials:\n"
+            "  • Replace every hardcoded secret, API key, password, or token with a ${ENV_VAR_NAME} "
+            "placeholder (or process.env.VAR_NAME for JS/TS) using the most descriptive name possible.\n"
+            "  • Example: DB_PASSWORD=hunter2  →  DB_PASSWORD=${DB_PASSWORD}\n"
+            "  • Example: const key = 'sk-abc' →  const key = process.env.OPENAI_KEY\n"
+            "  • Add a comment near each placeholder explaining what value should be set.\n"
+            "  • Keep ALL other file content (comments, structure, logic) exactly as-is."
+        )
+    elif category in ("sql_injection", "injection"):
+        strategy = (
+            "STRATEGY — SQL Injection:\n"
+            "  • Replace all raw string-concatenated SQL queries with parameterised queries / prepared statements.\n"
+            "  • Use the correct syntax for the detected language/library (e.g. cursor.execute(sql, params) for Python, "
+            "? placeholders for JDBC, $1/$2 for pg in Node.js).\n"
+            "  • Never interpolate user-controlled values directly into SQL strings.\n"
+            "  • Keep query logic, column names and table names identical — only fix the parameterisation."
+        )
+    elif category in ("xss", "cross_site_scripting"):
+        strategy = (
+            "STRATEGY — Cross-Site Scripting (XSS):\n"
+            "  • Escape all user-supplied data before it is inserted into HTML output.\n"
+            "  • Use the appropriate escaping function for the language (e.g. html.escape() in Python, "
+            "DOMPurify.sanitize() or textContent in JS, htmlspecialchars() in PHP).\n"
+            "  • Add or tighten the Content-Security-Policy header if this is a server config file.\n"
+            "  • Do NOT use innerHTML or dangerouslySetInnerHTML with un-sanitised input."
+        )
+    elif category in ("open_redirect",):
+        strategy = (
+            "STRATEGY — Open Redirect:\n"
+            "  • Add an allowlist of valid redirect destinations; reject or strip any URL that is not on the list.\n"
+            "  • Never use raw user input as the target of a Location header or window.location assignment without validation.\n"
+            "  • For relative redirects, strip the scheme and host so the redirect stays on the same origin."
+        )
+    elif category in ("auth_issue", "authentication", "weak_auth", "session"):
+        strategy = (
+            "STRATEGY — Authentication / Session Security:\n"
+            "  • Fix the specific auth weakness described (e.g. add password hashing with bcrypt/argon2, "
+            "enforce HTTPS-only cookies, set secure session flags, prevent credential exposure in logs).\n"
+            "  • Do not weaken any existing security controls while applying the fix.\n"
+            "  • Replace any plaintext secrets with ${ENV_VAR_NAME} references."
+        )
+    elif category in ("dependency", "vulnerable_dependency"):
+        strategy = (
+            "STRATEGY — Vulnerable Dependency:\n"
+            "  • Update the pinned version of the flagged package to the latest non-vulnerable version.\n"
+            "  • If the file is package.json, requirements.txt, pyproject.toml, Gemfile, etc., update ONLY "
+            "the affected package version; leave all other dependencies untouched.\n"
+            "  • Add a comment noting why the version was bumped."
+        )
+    elif category in ("missing_header", "security_header"):
+        strategy = (
+            "STRATEGY — Missing Security Headers:\n"
+            "  • Add the missing HTTP security headers (e.g. Content-Security-Policy, X-Frame-Options, "
+            "Strict-Transport-Security, X-Content-Type-Options, Referrer-Policy) to the server config or middleware.\n"
+            "  • Use secure, production-ready values for each header.\n"
+            "  • Do not remove or weaken any existing headers."
+        )
+    elif category in ("cors",):
+        strategy = (
+            "STRATEGY — CORS Misconfiguration:\n"
+            "  • Replace wildcard (*) Allow-Origin values with an explicit allowlist of trusted origins.\n"
+            "  • Ensure credentials are not allowed alongside wildcard origins.\n"
+            "  • Tighten allowed methods and headers to only what is strictly required."
+        )
+    else:
+        # Universal fallback — let the AI use its judgement guided by the fix_steps
+        strategy = (
+            "STRATEGY — General Security Fix:\n"
+            "  • Apply the fix described in the SUGGESTED FIX section below.\n"
+            "  • If the fix requires moving secrets to environment variables, use ${ENV_VAR_NAME} placeholders.\n"
+            "  • If the fix requires code changes (sanitisation, parameterisation, header additions, etc.), "
+            "apply the minimal correct change without altering unrelated logic.\n"
+            "  • Keep ALL other file content (comments, structure, imports) identical unless they are "
+            "directly part of the vulnerability."
+        )
+
+    prompt = (
+        f"You are an expert application security engineer producing a FIXED version of a source file.\n\n"
+        f"FILE: {file_path}\n\n"
+        f"VULNERABILITY FOUND:\n"
+        f"  Title:    {title}\n"
+        f"  Category: {category}\n"
+        f"  Detail:   {finding['description']}\n\n"
+        f"SUGGESTED FIX:\n{fix_hint}\n\n"
+        f"{strategy}\n\n"
+        f"ABSOLUTE RULES (never break these):\n"
+        f"  1. Return ONLY the raw, complete file content — no markdown fences, no explanations.\n"
+        f"  2. Rewrite the ENTIRE file (not just the affected lines) so the user can drop it\n"
+        f"     straight into their project.\n"
+        f"  3. Preserve the original file encoding, indentation style, and line endings.\n"
+        f"  4. Do NOT introduce new bugs or remove unrelated functionality.\n\n"
+        f"ORIGINAL FILE CONTENT:\n{original_content}"
+    )
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        ai_resp = await client.post(
+            GROQ_API_URL,
+            headers={"Authorization": f"Bearer {groq_api_key}", "Content-Type": "application/json"},
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.05,
+                "max_tokens": 4096,
+            },
+        )
+        if ai_resp.status_code != 200:
+            raise HTTPException(500, f"AI service error: {ai_resp.text[:200]}")
+
+    fixed_content = ai_resp.json()["choices"][0]["message"]["content"].strip()
+    # Strip accidental markdown fences
+    if fixed_content.startswith("```"):
+        lines = fixed_content.split("\n")
+        fixed_content = "\n".join(lines[1:-1]) if len(lines) > 2 else fixed_content
+
+    filename = file_path.split("/")[-1]
+    return {
+        "status": "ok",
+        "filename": filename,
+        "file_path": file_path,
+        "content": fixed_content,
+    }
