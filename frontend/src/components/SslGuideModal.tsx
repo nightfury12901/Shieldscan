@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import React from 'react'
 import { X, Lock, Copy, CheckCircle2, ChevronRight, Globe, Server, Terminal, Shield, Cookie, GitBranch, Zap, AlertTriangle } from 'lucide-react'
 import './SslGuideModal.css'
 
@@ -23,7 +24,7 @@ function detectGuideType(finding: any): GuideType {
   return 'generic'
 }
 
-const GUIDE_META: Record<GuideType, { label: string; icon: JSX.Element; color: string }> = {
+const GUIDE_META: Record<GuideType, { label: string; icon: React.ReactNode; color: string }> = {
   ssl:           { label: 'SSL / HTTPS Certificate',   icon: <Lock size={15} />,        color: '#2ce870' },
   headers:       { label: 'Security Headers',           icon: <Shield size={15} />,      color: '#a78bfa' },
   cookies:       { label: 'Cookie Security',            icon: <Cookie size={15} />,      color: '#f0c800' },
