@@ -7,10 +7,13 @@ import re
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, validator
 from dotenv import load_dotenv
+
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 load_dotenv()
 
@@ -562,11 +565,17 @@ async def _run_github_scan(scan_id: str, repo_url: str, pat: Optional[str], webh
         await update_progress(scan_id, 95)
         insert_findings(scan_id, unique_findings)
 
+        # Sanitize results for JSON serialization (exceptions are not JSON-serializable)
+        safe_results = [
+            r if isinstance(r, dict) else {"module": "unknown", "status": "error", "error": str(r), "findings": []}
+            for r in results
+        ]
+
         supabase.table("scans").update({
             "status": "done",
             "progress": 100,
             "risk_score": risk_score,
-            "raw_json": {"modules": results, "module_statuses": module_statuses},
+            "raw_json": {"modules": safe_results, "module_statuses": module_statuses},
             "ai_report": ai_report,
             "completed_at": datetime.utcnow().isoformat(),
         }).eq("id", scan_id).execute()
@@ -748,11 +757,17 @@ async def _run_zip_scan(scan_id: str, storage_path: str):
         await update_progress(scan_id, 95)
         insert_findings(scan_id, unique_findings)
 
+        # Sanitize results for JSON serialization (exceptions are not JSON-serializable)
+        safe_results = [
+            r if isinstance(r, dict) else {"module": "unknown", "status": "error", "error": str(r), "findings": []}
+            for r in results
+        ]
+
         supabase.table("scans").update({
             "status": "done",
             "progress": 100,
             "risk_score": risk_score,
-            "raw_json": {"modules": results, "module_statuses": module_statuses},
+            "raw_json": {"modules": safe_results, "module_statuses": module_statuses},
             "ai_report": ai_report,
             "completed_at": datetime.utcnow().isoformat(),
         }).eq("id", scan_id).execute()
@@ -782,6 +797,69 @@ async def get_history(target: str, limit: int = 20):
         "created_at", desc=True
     ).limit(limit).execute()
     return {"history": result.data}
+
+# ─────────────────────────────────────────────
+# GET /api/badge
+# ─────────────────────────────────────────────
+@app.get("/api/badge")
+async def get_badge(url: str):
+    """Return an SVG badge showing the security score for a given target."""
+    supabase = get_supabase()
+    # Get the latest completed scan for this target
+    scan = supabase.table("scans").select("risk_score").eq("target", url).eq("status", "done").order("created_at", desc=True).limit(1).execute()
+    
+    score = -1
+    if scan.data and len(scan.data) > 0:
+        score_val = scan.data[0].get("risk_score")
+        if score_val is not None:
+            score = int(score_val)
+
+    if score == -1:
+        grade = "N/A"
+        color = "#9e9e9e" # grey
+    else:
+        if score >= 90:
+            grade = "A"
+            color = "#4c1"
+        elif score >= 80:
+            grade = "B"
+            color = "#97ca00"
+        elif score >= 70:
+            grade = "C"
+            color = "#dfb317"
+        elif score >= 50:
+            grade = "D"
+            color = "#fe7d37"
+        else:
+            grade = "F"
+            color = "#e05d44"
+
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="100" height="20">
+    <linearGradient id="b" x2="0" y2="100%">
+        <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+        <stop offset="1" stop-opacity=".1"/>
+    </linearGradient>
+    <mask id="a">
+        <rect width="100" height="20" rx="3" fill="#fff"/>
+    </mask>
+    <g mask="url(#a)">
+        <path fill="#555" d="M0 0h65v20H0z"/>
+        <path fill="{color}" d="M65 0h35v20H65z"/>
+        <path fill="url(#b)" d="M0 0h100v20H0z"/>
+    </g>
+    <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+        <text x="32.5" y="15" fill="#010101" fill-opacity=".3">Security</text>
+        <text x="32.5" y="14">Security</text>
+        <text x="82.5" y="15" fill="#010101" fill-opacity=".3">{grade}</text>
+        <text x="82.5" y="14">{grade}</text>
+    </g>
+</svg>"""
+
+    # Return with SVG content type and cache headers so badges can update or be cached briefly
+    headers = {
+        "Cache-Control": "public, max-age=3600",
+    }
+    return Response(content=svg, media_type="image/svg+xml", headers=headers)
 
 # ─────────────────────────────────────────────
 # GET /api/report/{scan_id}

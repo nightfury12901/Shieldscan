@@ -258,13 +258,19 @@ export default function Home() {
               </div>
             )}
 
-            {credits !== null && credits >= 0 && (
+            {credits !== null && (
                <div className="mt-4 flex items-center justify-between bg-[#161616] border border-[#ffffff14] p-3 rounded-md text-sm text-[#e6e6e6cc]">
                   <div className="flex items-center gap-2">
                      <Coins size={14} className="text-[#e6e6e640]" />
-                     <span><strong className="text-white">{credits}</strong> scans remaining</span>
+                     {credits > 0 ? (
+                       <span><strong className="text-white">{credits}</strong> scans remaining</span>
+                     ) : (
+                       <span className="text-red-400">0 scans remaining</span>
+                     )}
                   </div>
-                  <button onClick={() => setShowUpgradeModal(true)} className="text-xs text-white hover:underline transition">Upgrade</button>
+                  <button onClick={() => setShowUpgradeModal(true)} className="text-xs text-white hover:underline transition">
+                    {credits > 0 ? 'Upgrade' : 'Get More Scans'}
+                  </button>
                </div>
             )}
 

@@ -133,6 +133,8 @@ function FindingCard({ finding, scan }: { finding: any; scan: any }) {
   const isZipScan = scan?.scan_type === 'zip'
   const isUrlScan = scan?.scan_type === 'url'
   const hasAsset = !!finding.affected_asset
+  // Auto-fix requires a real file path, not a URL. Skip if asset contains '://'.
+  const assetIsFilePath = hasAsset && !finding.affected_asset.includes('://')
   const showRemediationGuide = isUrlScan && isUrlRemediable(finding)
   const showFixedFileButton = isZipScan && hasAsset
 
@@ -268,8 +270,8 @@ function FindingCard({ finding, scan }: { finding: any; scan: any }) {
               </button>
             )}
 
-            {/* Auto-fix button — only for GitHub scans with patchable assets */}
-            {isGithubScan && hasAsset && autofixStep !== 'success' && (
+            {/* Auto-fix button — only for GitHub scans with patchable file assets */}
+            {isGithubScan && assetIsFilePath && autofixStep !== 'success' && (
               <button
                 className="btn-autofix"
                 onClick={handleAutoFix}
@@ -389,6 +391,7 @@ export default function Results() {
   const [findings, setFindings] = useState<any[]>([])
   const [historicalScans, setHistoricalScans] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [pollTimeout, setPollTimeout] = useState(false)
 
   useEffect(() => {
     if (!scanId) return
@@ -427,7 +430,47 @@ export default function Results() {
         })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    // ── Polling fallback ──────────────────────────────────────────────
+    // If Supabase Realtime misses the update (e.g. Vercel 60s timeout
+    // kills the function after writing to DB, before WS fires), we
+    // poll every 5 seconds while the scan is pending/running.
+    // After 90 seconds without completion we stop to avoid infinite loop.
+    const POLL_INTERVAL_MS = 5000
+    const MAX_POLL_MS = 90000
+    let pollCount = 0
+    const maxPolls = MAX_POLL_MS / POLL_INTERVAL_MS
+
+    const pollInterval = setInterval(async () => {
+      pollCount++
+      if (pollCount > maxPolls) {
+        clearInterval(pollInterval)
+        setPollTimeout(true)
+        return
+      }
+      // Only poll while still in a non-terminal state
+      const { data: freshScan } = await supabase
+        .from('scans').select('*').eq('id', scanId).single()
+      if (!freshScan) return
+      setScan(freshScan)
+      if (freshScan.status === 'done' || freshScan.status === 'failed') {
+        clearInterval(pollInterval)
+        if (freshScan.status === 'done') {
+          const { data: findingsData } = await supabase
+            .from('findings').select('*').eq('scan_id', scanId)
+          if (findingsData) setFindings(findingsData)
+          const { data: historyData } = await supabase
+            .from('scans').select('*')
+            .eq('target', freshScan.target).eq('status', 'done')
+            .order('created_at', { ascending: true }).limit(10)
+          if (historyData) setHistoricalScans(historyData)
+        }
+      }
+    }, POLL_INTERVAL_MS)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(pollInterval)
+    }
   }, [scanId])
 
   const handleDownloadPdf = async () => {
@@ -478,22 +521,26 @@ export default function Results() {
   if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="w-8 h-8 text-teal animate-spin" /></div>
   if (!scan) return <div className="text-center text-red-500 mt-20">Scan not found</div>
 
-  const isScanning = scan.status === 'pending' || scan.status === 'running'
+  const isScanning = (scan.status === 'pending' || scan.status === 'running') && !pollTimeout
   const critical = findings.filter(f => f.severity === 'critical')
   const medium = findings.filter(f => f.severity === 'medium')
   const low = findings.filter(f => f.severity === 'low')
 
   const sidebarEl = document.getElementById('sidebar')
 
-  if (scan.status === 'failed') {
+  if (scan.status === 'failed' || pollTimeout) {
     return (
       <div className="flex flex-col h-[calc(100vh-100px)] items-center justify-center p-8 text-center animate-in fade-in zoom-in-95">
         <AlertCircle className="w-16 h-16 text-red-500 mb-6 mx-auto animate-pulse" />
-        <h2 className="text-2xl font-display font-bold text-white mb-3">Scan Failed</h2>
+        <h2 className="text-2xl font-display font-bold text-white mb-3">
+          {pollTimeout ? 'Scan Timed Out' : 'Scan Failed'}
+        </h2>
         <p className="text-gray-400 max-w-md mx-auto leading-relaxed mb-6">
-          The security analysis could not be completed. This usually happens if the GitHub API enforces rate limits (60 unauthenticated requests/hr), or if the uploaded ZIP file was corrupted.
+          {pollTimeout
+            ? "The security analysis took too long to respond. The scan may still be running in the background, or it may have encountered an unrecoverable error (e.g. timeout). Check back later in your History."
+            : "The security analysis could not be completed. This usually happens if the GitHub API enforces rate limits (60 unauthenticated requests/hr), or if the uploaded ZIP file was corrupted."}
         </p>
-        {scan.raw_json?.error && (
+        {scan.raw_json?.error && !pollTimeout && (
           <div className="bg-[#1a0f0f] border border-red-500/20 rounded-lg p-4 text-left max-w-lg mx-auto w-full overflow-auto">
             <div className="text-xs font-display text-red-400 uppercase tracking-widest mb-2">Error Details</div>
             <code className="text-sm text-red-300 font-mono break-words">{scan.raw_json.error}</code>
@@ -611,6 +658,17 @@ export default function Results() {
                 <div className="kpi-item">
                   <span className="kpi-num" style={{ color: 'var(--color-success)' }}>{low.length}</span>
                   <span className="kpi-label">Low</span>
+                </div>
+              </div>
+
+              <div className="mt-8 border-t border-white/10 pt-6">
+                <h3 className="text-sm font-display tracking-widest text-gray-400 uppercase mb-3">Share Security Score</h3>
+                <p className="text-xs text-gray-500 mb-3">Embed this badge on your README or website to build trust with your users.</p>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <img src={`${(import.meta as any).env?.VITE_API_BASE_URL || window.location.origin}/api/badge?url=${encodeURIComponent(scan.target)}`} alt="Security Score" className="h-6" />
+                  <code className="text-xs bg-black/40 border border-white/10 p-2.5 rounded w-full overflow-auto text-gray-300 font-mono whitespace-nowrap">
+                    [![Security Score]({(import.meta as any).env?.VITE_API_BASE_URL || window.location.origin}/api/badge?url={encodeURIComponent(scan.target)})]({window.location.origin})
+                  </code>
                 </div>
               </div>
             </div>

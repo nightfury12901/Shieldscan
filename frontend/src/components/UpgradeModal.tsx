@@ -32,9 +32,14 @@ export default function UpgradeModal({ userId, onClose, onSuccess }: UpgradeModa
 
       if (!orderRes.ok) throw new Error(orderData.detail || 'Failed to create order')
 
+      const razorpayKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID || ''
+      if (!razorpayKeyId) {
+        throw new Error('Razorpay is not configured (missing VITE_RAZORPAY_KEY_ID in .env). Payment cannot proceed.')
+      }
+
       // 2. Open Razorpay Checkout
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || '', // Optional if passing from backend, but better here
+        key: razorpayKeyId,
         amount: orderData.amount,
         currency: orderData.currency,
         name: "ShieldScan Premium",
