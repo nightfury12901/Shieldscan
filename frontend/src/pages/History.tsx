@@ -65,7 +65,7 @@ export default function History() {
               <tr className="border-b border-[#222] bg-[#111]">
                 <th className="px-6 py-4 font-display text-xs text-gray-500 uppercase tracking-widest font-semibold">Target</th>
                 <th className="px-6 py-4 font-display text-xs text-gray-500 uppercase tracking-widest font-semibold">Status</th>
-                <th className="px-6 py-4 font-display text-xs text-gray-500 uppercase tracking-widest font-semibold">Risk Score</th>
+                <th className="px-6 py-4 font-display text-xs text-gray-500 uppercase tracking-widest font-semibold">Security Score</th>
                 <th className="px-6 py-4 font-display text-xs text-gray-500 uppercase tracking-widest font-semibold">Date</th>
                 <th className="px-6 py-4"></th>
               </tr>

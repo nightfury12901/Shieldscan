@@ -72,7 +72,7 @@ export default function SharedReport() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="col-span-1 bg-card/40 border border-gray-800 rounded-2xl p-6 flex flex-col items-center justify-center shadow-lg relative overflow-hidden">
               <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 opacity-20" />
-              <h3 className="text-gray-400 text-sm uppercase tracking-widest font-semibold mb-6">Business Risk Score</h3>
+              <h3 className="text-gray-400 text-sm uppercase tracking-widest font-semibold mb-6">Security Score</h3>
               
               <div className="relative w-48 h-48 flex items-center justify-center">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">

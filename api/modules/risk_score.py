@@ -1,5 +1,5 @@
 """
-Business Risk Score — pure Python weighted sum.
+Business Security Score — pure Python weighted sum.
 No scikit-learn. No model.pkl. Deterministic arithmetic only.
 """
 from typing import Any

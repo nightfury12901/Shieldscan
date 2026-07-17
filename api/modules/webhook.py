@@ -26,7 +26,7 @@ async def send_slack_webhook(webhook_url: str, target: str, risk_score: int, cri
                         "fields": [
                             {
                                 "type": "mrkdwn",
-                                "text": f"*Risk Score:*\n{risk_score}/100 ({status_text})"
+                                "text": f"*Security Score:*\n{risk_score}/100 ({status_text})"
                             },
                             {
                                 "type": "mrkdwn",

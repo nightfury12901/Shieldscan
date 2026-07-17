@@ -34,7 +34,7 @@ Unlike generic scanners, ShieldScan uses a **hybrid approach**: combining determ
 *   **✨ AI Auto-Fix**: One-click remediation — ShieldScan generates a **GitHub Pull Request** with a suggested security patch.
 
 ### 📊 Professional Metrics
-*   **Business Risk Score**: A deterministic 0-100 score weighted by severity.
+*   **Security Score**: A deterministic 0-100 score weighted by severity.
 *   **Compliance Mapping**: Automatic mapping of findings to **SOC 2**, **PCI-DSS**, and **ISO 27001**.
 *   **PDF Export**: Generate branded, production-ready security reports for stakeholders.
 

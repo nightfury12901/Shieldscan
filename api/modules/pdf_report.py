@@ -62,7 +62,7 @@ def generate_pdf(scan: dict, findings: list[dict]) -> bytes:
         ["Target", target],
         ["Scan Type", scan_type],
         ["Date", created],
-        ["Business Risk Score", str(score) + " / 100"],
+        ["Security Score", str(score) + " / 100"],
     ]
     meta_table = Table(meta_data, colWidths=[50*mm, 120*mm])
     meta_table.setStyle(TableStyle([

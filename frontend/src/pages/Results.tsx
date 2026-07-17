@@ -41,7 +41,7 @@ function SidebarContent({ scan, criticalCount, mediumCount, lowCount, onExport }
       <div className="sb-divider"></div>
       <div className="risk-score-widget">
         <span className="risk-score-num" id="risk-score-display">{scan?.risk_score || 0}</span>
-        <span className="risk-score-label">Risk Score</span>
+        <span className="risk-score-label">Security Score</span>
         <svg className="risk-arc-svg" width="140" height="76" viewBox="0 0 140 76" aria-hidden="true">
           <defs>
             <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -494,7 +494,7 @@ export default function Results() {
     return {
       labels,
       datasets: [{
-        label: 'Risk Score',
+        label: 'Security Score',
         data: scores,
         borderColor: '#ffffff',
         backgroundColor: 'rgba(255,255,255,0.05)',
@@ -644,7 +644,7 @@ export default function Results() {
               </p>
               <p className="summary-body">
                 Scan completed on {new Date(scan.created_at).toLocaleDateString()}. Target: <code>{scan.target}</code>.
-                {' '}{findings.length} total findings discovered. Risk score: {scan.risk_score}/100.
+                {' '}{findings.length} total findings discovered. Security score: {scan.risk_score}/100.
               </p>
               <div className="kpi-row">
                 <div className="kpi-item">
@@ -708,7 +708,7 @@ export default function Results() {
             <h2 className="section-heading">Scan History</h2>
             <div className="history-pills">
               <span className="stat-pill">Total Audits: {historicalScans.length}</span>
-              <span className="stat-pill">Avg Risk Score: {avgRiskScore}</span>
+              <span className="stat-pill">Avg Security Score: {avgRiskScore}</span>
             </div>
             <div className="chart-card">
               <div className="chart-wrap">
