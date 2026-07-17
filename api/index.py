@@ -280,9 +280,6 @@ async def _run_url_scan(scan_id: str, url: str, webhook_url: str = None):
             module_statuses[r["module"]] = r["status"]
             all_findings.extend(r.get("findings", []))
 
-        risk_score = compute_risk_score(all_findings)
-        ai_report = await generate_ai_report(all_findings)
-
         # Deduplicate URL findings based on title and severity
         unique_findings = []
         seen = set()
@@ -291,6 +288,9 @@ async def _run_url_scan(scan_id: str, url: str, webhook_url: str = None):
             if sig not in seen:
                 seen.add(sig)
                 unique_findings.append(f)
+
+        risk_score = compute_risk_score(unique_findings)
+        ai_report = await generate_ai_report(unique_findings)
 
         await update_progress(scan_id, 95)
         insert_findings(scan_id, unique_findings)
@@ -549,9 +549,6 @@ async def _run_github_scan(scan_id: str, repo_url: str, pat: Optional[str], webh
             module_statuses[r.get("module", "unknown")] = r.get("status", "unknown")
             all_findings.extend(r.get("findings", []))
 
-        risk_score = compute_risk_score(all_findings)
-        ai_report = await generate_ai_report(all_findings)
-
         # Deduplicate findings based on title, affected_asset, and severity
         unique_findings = []
         seen = set()
@@ -561,6 +558,9 @@ async def _run_github_scan(scan_id: str, repo_url: str, pat: Optional[str], webh
             if sig not in seen:
                 seen.add(sig)
                 unique_findings.append(f)
+
+        risk_score = compute_risk_score(unique_findings)
+        ai_report = await generate_ai_report(unique_findings)
 
         await update_progress(scan_id, 95)
         insert_findings(scan_id, unique_findings)
@@ -741,9 +741,6 @@ async def _run_zip_scan(scan_id: str, storage_path: str):
             module_statuses[r.get("module", "unknown")] = r.get("status", "unknown")
             all_findings.extend(r.get("findings", []))
 
-        risk_score = compute_risk_score(all_findings)
-        ai_report = await generate_ai_report(all_findings)
-        
         # Deduplicate findings based on title, affected_asset, and severity
         unique_findings = []
         seen = set()
@@ -753,6 +750,9 @@ async def _run_zip_scan(scan_id: str, storage_path: str):
             if sig not in seen:
                 seen.add(sig)
                 unique_findings.append(f)
+                
+        risk_score = compute_risk_score(unique_findings)
+        ai_report = await generate_ai_report(unique_findings)
                 
         await update_progress(scan_id, 95)
         insert_findings(scan_id, unique_findings)
