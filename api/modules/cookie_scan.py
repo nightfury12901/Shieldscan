@@ -26,9 +26,12 @@ async def scan_cookies(url: str) -> list[dict]:
                 # Extract cookie name (first part before =)
                 cookie_name = cookie_str.split("=")[0].strip() or "unknown"
 
-                if "httponly" not in parts_lower:
+                # CSRF cookies explicitly need to be readable by JS, so they shouldn't have HttpOnly.
+                is_csrf_cookie = any(k in cookie_name.lower() for k in ["csrf", "xsrf"])
+
+                if "httponly" not in parts_lower and not is_csrf_cookie:
                     findings.append({
-                        "severity": "critical",
+                        "severity": "medium",
                         "category": "cookie_security",
                         "title": f"Cookie Missing HttpOnly Flag: {cookie_name}",
                         "description": (
