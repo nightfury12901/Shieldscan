@@ -4,6 +4,7 @@ Uses regex + simple AST-like matching to detect insecure coding patterns.
 """
 import re
 from typing import Any
+import subprocess
 
 # ─────────────────────────────────────────────
 # Pattern definitions
@@ -179,3 +180,35 @@ async def scan_code_patterns(files: list[dict]) -> list[dict]:
                 })
 
     return findings
+
+
+def execute_command(command: list[str]) -> str:
+    try:
+        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return result.stdout.decode("utf-8")
+    except subprocess.CalledProcessError as e:
+        return f"Error executing command: {e}"
+
+
+# Example usage:
+if __name__ == "__main__":
+    import asyncio
+
+    async def main():
+        files = [
+            {"path": "example.py", "content": "import os\nos.system('ls -la')"},
+            {"path": "example2.py", "content": "import subprocess\nsubprocess.run('ls -la', shell=True)"},
+        ]
+        findings = await scan_code_patterns(files)
+        for finding in findings:
+            print(f"Severity: {finding['severity']}")
+            print(f"Category: {finding['category']}")
+            print(f"Title: {finding['title']}")
+            print(f"Description: {finding['description']}")
+            print(f"Fix Steps: {finding['fix_steps']}")
+            print(f"Affected Asset: {finding['affected_asset']}")
+            print(f"Line Number: {finding['line_number']}")
+            print(f"Metadata: {finding['metadata']}")
+            print("")
+
+    asyncio.run(main())
